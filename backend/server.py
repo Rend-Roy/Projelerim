@@ -101,6 +101,34 @@ class VisitUpdate(BaseModel):
     customer_request: Optional[str] = None
     note: Optional[str] = None
 
+# Follow-Up model
+class FollowUp(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    customer_id: str
+    due_date: str  # YYYY-MM-DD
+    due_time: Optional[str] = None  # HH:MM
+    status: str = "pending"  # pending, done, late
+    reason: Optional[str] = None
+    note: Optional[str] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class FollowUpCreate(BaseModel):
+    customer_id: str
+    due_date: str
+    due_time: Optional[str] = None
+    reason: Optional[str] = None
+    note: Optional[str] = None
+
+class FollowUpUpdate(BaseModel):
+    due_date: Optional[str] = None
+    due_time: Optional[str] = None
+    status: Optional[str] = None
+    reason: Optional[str] = None
+    note: Optional[str] = None
+
 # Daily Report Note model
 class DailyReportNote(BaseModel):
     model_config = ConfigDict(extra="ignore")
