@@ -231,6 +231,16 @@ class TurkishCustomerVisitAPITester:
         )
         return success, response
 
+    def test_delete_customer(self, customer_id):
+        """Test deleting a customer"""
+        success, response = self.run_test(
+            "Delete Customer",
+            "DELETE",
+            f"customers/{customer_id}",
+            200
+        )
+        return success, response
+
 def main():
     print("🚀 Starting Turkish Customer Visit Tracking API Tests")
     print("=" * 60)
