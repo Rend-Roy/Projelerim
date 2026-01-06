@@ -134,6 +134,32 @@ export default function CustomerDetailPage() {
     }
   };
 
+  const handleCreateFollowUp = async () => {
+    if (!followUpData.due_date) {
+      toast.error("Tarih seçiniz");
+      return;
+    }
+    
+    setSavingFollowUp(true);
+    try {
+      await axios.post(`${API}/follow-ups`, {
+        customer_id: id,
+        due_date: followUpData.due_date,
+        due_time: followUpData.due_time || null,
+        reason: followUpData.reason || null,
+        note: followUpData.note || null
+      });
+      toast.success("Takip oluşturuldu");
+      setFollowUpDialogOpen(false);
+      setFollowUpData({ due_date: "", due_time: "", reason: "", note: "" });
+    } catch (error) {
+      console.error("Error creating follow-up:", error);
+      toast.error("Takip oluşturulamadı");
+    } finally {
+      setSavingFollowUp(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-4 pt-6" data-testid="loading-state">
