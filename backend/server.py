@@ -258,6 +258,168 @@ async def save_daily_note(date: str, input: DailyReportNoteUpdate):
         await db.daily_notes.insert_one(doc)
     return {"message": "Not kaydedildi", "date": date}
 
+# Excel Upload endpoint
+@api_router.post("/customers/upload")
+async def upload_customers_excel(file: UploadFile = File(...)):
+    """
+    Excel dosyasından toplu müşteri yükleme.
+    Gerekli sütunlar: Müşteri Adı, Bölge
+    Opsiyonel sütunlar: Telefon, Adres, Fiyat Statüsü, Ziyaret Günleri
+    """
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Sadece Excel dosyaları (.xlsx, .xls) kabul edilir")
+    
+    try:
+        contents = await file.read()
+        wb = load_workbook(filename=io.BytesIO(contents))
+        ws = wb.active
+        
+        # Get headers from first row
+        headers = []
+        for cell in ws[1]:
+            headers.append(str(cell.value).strip().lower() if cell.value else "")
+        
+        # Map column names (Turkish to English)
+        column_map = {
+            'müşteri adı': 'name',
+            'musteri adi': 'name',
+            'ad': 'name',
+            'isim': 'name',
+            'name': 'name',
+            'bölge': 'region',
+            'bolge': 'region',
+            'region': 'region',
+            'telefon': 'phone',
+            'tel': 'phone',
+            'phone': 'phone',
+            'adres': 'address',
+            'address': 'address',
+            'fiyat statüsü': 'price_status',
+            'fiyat statusu': 'price_status',
+            'fiyat': 'price_status',
+            'statü': 'price_status',
+            'price_status': 'price_status',
+            'ziyaret günleri': 'visit_days',
+            'ziyaret gunleri': 'visit_days',
+            'günler': 'visit_days',
+            'visit_days': 'visit_days',
+        }
+        
+        # Find column indices
+        col_indices = {}
+        for i, header in enumerate(headers):
+            mapped = column_map.get(header)
+            if mapped:
+                col_indices[mapped] = i
+        
+        # Check required columns
+        if 'name' not in col_indices:
+            raise HTTPException(status_code=400, detail="'Müşteri Adı' sütunu bulunamadı")
+        if 'region' not in col_indices:
+            raise HTTPException(status_code=400, detail="'Bölge' sütunu bulunamadı")
+        
+        customers_to_add = []
+        errors = []
+        row_num = 1
+        
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            row_num += 1
+            
+            # Skip empty rows
+            if not any(row):
+                continue
+            
+            name = str(row[col_indices['name']]).strip() if row[col_indices['name']] else ""
+            region = str(row[col_indices['region']]).strip() if row[col_indices['region']] else ""
+            
+            if not name or not region:
+                errors.append(f"Satır {row_num}: Müşteri adı veya bölge boş")
+                continue
+            
+            customer = {
+                "id": str(uuid.uuid4()),
+                "name": name,
+                "region": region,
+                "phone": str(row[col_indices.get('phone', -1)]).strip() if col_indices.get('phone') is not None and row[col_indices['phone']] else None,
+                "address": str(row[col_indices.get('address', -1)]).strip() if col_indices.get('address') is not None and row[col_indices['address']] else None,
+                "price_status": "Standart",
+                "visit_days": [],
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            # Handle price_status
+            if 'price_status' in col_indices and row[col_indices['price_status']]:
+                ps = str(row[col_indices['price_status']]).strip().lower()
+                if ps in ['iskontolu', 'iskonto', 'indirimli', 'özel']:
+                    customer['price_status'] = "İskontolu"
+            
+            # Handle visit_days
+            if 'visit_days' in col_indices and row[col_indices['visit_days']]:
+                days_str = str(row[col_indices['visit_days']]).strip()
+                valid_days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+                customer['visit_days'] = [d.strip() for d in days_str.split(',') if d.strip() in valid_days]
+            
+            customers_to_add.append(customer)
+        
+        if not customers_to_add:
+            raise HTTPException(status_code=400, detail="Yüklenecek geçerli müşteri bulunamadı")
+        
+        # Insert customers
+        await db.customers.insert_many(customers_to_add)
+        
+        return {
+            "message": f"{len(customers_to_add)} müşteri başarıyla yüklendi",
+            "added_count": len(customers_to_add),
+            "errors": errors[:10] if errors else []  # Return first 10 errors
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Dosya işlenirken hata: {str(e)}")
+
+# Download sample Excel template
+@api_router.get("/customers/template")
+async def download_template():
+    """Örnek Excel şablonu indir"""
+    from openpyxl import Workbook
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Müşteriler"
+    
+    # Headers
+    headers = ["Müşteri Adı", "Bölge", "Telefon", "Adres", "Fiyat Statüsü", "Ziyaret Günleri"]
+    for col, header in enumerate(headers, 1):
+        ws.cell(row=1, column=col, value=header)
+    
+    # Sample data
+    sample_data = [
+        ["Örnek Market", "Kadıköy", "0532 111 2233", "Moda Cad. No:15", "Standart", "Pazartesi, Çarşamba, Cuma"],
+        ["ABC Bakkaliye", "Beşiktaş", "0533 222 3344", "Çarşı Cad. No:8", "İskontolu", "Salı, Perşembe"],
+    ]
+    for row_num, row_data in enumerate(sample_data, 2):
+        for col, value in enumerate(row_data, 1):
+            ws.cell(row=row_num, column=col, value=value)
+    
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 18
+    ws.column_dimensions['D'].width = 30
+    ws.column_dimensions['E'].width = 15
+    ws.column_dimensions['F'].width = 35
+    
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=musteri_sablonu.xlsx"}
+    )
+
 # Seed sample data
 @api_router.post("/seed")
 async def seed_data():
