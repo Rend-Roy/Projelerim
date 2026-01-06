@@ -158,26 +158,78 @@ export default function TodayPage() {
       </div>
 
       {/* PDF Report Button */}
-      <Button
-        onClick={handleDownloadPdf}
-        disabled={downloadingPdf || totalCount === 0}
-        variant="outline"
-        className="w-full h-12 mb-6 border-slate-200 hover:bg-slate-50 rounded-xl font-medium"
-        data-testid="download-pdf-button"
-      >
-        {downloadingPdf ? (
-          <span className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-            İndiriliyor...
-          </span>
-        ) : (
-          <span className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-slate-600" />
-            Gün Sonu Raporu (PDF)
-            <Download className="w-4 h-4 text-slate-400" />
-          </span>
-        )}
-      </Button>
+      <div className="flex gap-2 mb-6">
+        <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              className="flex-1 h-12 border-slate-200 hover:bg-slate-50 rounded-xl font-medium"
+              data-testid="daily-note-button"
+            >
+              <span className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-slate-600" />
+                Gün Sonu Notu
+              </span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Gün Sonu Notu</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-slate-500">
+                Bu not PDF raporunda yöneticiye gösterilecektir.
+              </p>
+              <Textarea
+                value={dailyNote}
+                onChange={(e) => setDailyNote(e.target.value)}
+                placeholder="Günün genel değerlendirmesi, önemli notlar, dikkat edilmesi gerekenler..."
+                className="min-h-[150px] resize-none"
+                data-testid="daily-note-textarea"
+              />
+              <Button
+                onClick={saveDailyNote}
+                disabled={savingNote}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                data-testid="save-daily-note"
+              >
+                {savingNote ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Kaydediliyor...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Save className="w-4 h-4" />
+                    Notu Kaydet
+                  </span>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Button
+          onClick={handleDownloadPdf}
+          disabled={downloadingPdf || totalCount === 0}
+          variant="outline"
+          className="flex-1 h-12 border-slate-200 hover:bg-slate-50 rounded-xl font-medium"
+          data-testid="download-pdf-button"
+        >
+          {downloadingPdf ? (
+            <span className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+              İndiriliyor...
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-slate-600" />
+              PDF Rapor
+              <Download className="w-4 h-4 text-slate-400" />
+            </span>
+          )}
+        </Button>
+      </div>
 
       {/* Customer List */}
       <section>
