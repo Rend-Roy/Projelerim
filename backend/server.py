@@ -966,7 +966,23 @@ async def get_performance_analytics(period: str = "weekly", start_date: str = No
                 "total_payment": standart_payment
             }
         },
-        "daily_breakdown": daily_data
+        "daily_breakdown": daily_data,
+        # FAZ 2: Ziyaret Kalitesi Metrikleri
+        "visit_quality": {
+            "duration": {
+                "average_minutes": avg_duration,
+                "total_measured": len(duration_values),
+                "short_visits": short_visits,  # <5 dakika
+                "long_visits": long_visits,  # >60 dakika
+                "warning_threshold": {"short": 5, "long": 60}
+            },
+            "rating": {
+                "average_rating": avg_quality,
+                "total_rated": len(quality_values),
+                "distribution": quality_distribution,
+                "quality_payment_relation": quality_payment_relation
+            }
+        }
     }
 
 # Seed sample data
