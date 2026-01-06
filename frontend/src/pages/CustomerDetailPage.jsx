@@ -489,6 +489,41 @@ export default function CustomerDetailPage() {
         )}
       </div>
 
+      {/* FAZ 2: Ziyaret Kalitesi (Yıldız Puanlama) */}
+      <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-3">
+        <h2 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
+          <Star className="w-5 h-5 text-amber-500" />
+          Ziyaret Kalitesi
+        </h2>
+        <div className="flex items-center justify-center gap-2" data-testid="quality-rating">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              onClick={() => setQualityRating(star)}
+              className="p-1 transition-transform hover:scale-110 active:scale-95"
+              data-testid={`star-${star}`}
+            >
+              <Star 
+                className={`w-10 h-10 transition-colors ${
+                  star <= qualityRating 
+                    ? "text-amber-400 fill-amber-400" 
+                    : "text-slate-200"
+                }`} 
+              />
+            </button>
+          ))}
+        </div>
+        {qualityRating > 0 && (
+          <p className="text-center mt-2 text-sm text-slate-500">
+            {qualityRating === 1 && "Çok Düşük"}
+            {qualityRating === 2 && "Düşük"}
+            {qualityRating === 3 && "Orta"}
+            {qualityRating === 4 && "İyi"}
+            {qualityRating === 5 && "Mükemmel"}
+          </p>
+        )}
+      </div>
+
       {/* Müşteri Talebi */}
       <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-3">
         <h2 className="text-base font-semibold text-slate-800 mb-3">
