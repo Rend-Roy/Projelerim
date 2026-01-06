@@ -104,8 +104,10 @@
 
 user_problem_statement: |
   Satış temsilcisi için günlük müşteri ziyareti takip uygulaması (Türkçe).
-  - Müşteri takip (Follow-Up) modülü eklendi
-  - Performans modülü follow-up verilerini kullanacak şekilde güncellendi
+  FAZ 2 - Saha Ziyaret Kalitesi özellikleri eklendi:
+  1. Ziyaret Süresi Takibi (Başlat/Bitir)
+  2. Ziyaret Kalitesi (1-5 yıldız)
+  3. Müşteri Uyarıları (Kırmızı Bayrak)
 
 backend:
   - task: "Follow-Up CRUD API endpoints"
@@ -123,80 +125,114 @@ backend:
         agent: "testing"
         comment: "Comprehensive testing completed. All Follow-Up CRUD operations working correctly: POST /api/follow-ups (creates with required customer_id, due_date and optional fields), GET /api/follow-ups?date= (returns array with customer info), POST /api/follow-ups/{id}/complete (changes status to 'done', sets completed_at, returns Turkish message 'Takip tamamlandı'). All response structures validated."
 
-  - task: "Analytics endpoint follow-up integration"
+  - task: "FAZ 2 - Visit Start/End API endpoints"
     implemented: true
     working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Analytics API güncellendi - planlanan ziyaret ve tamamlanan sayıları follow_ups koleksiyonundan hesaplanıyor"
+        comment: "POST /api/visits/{id}/start ve /end endpoint'leri eklendi. Süre otomatik hesaplanıyor."
+
+  - task: "FAZ 2 - Customer Alerts API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
       - working: true
-        agent: "testing"
-        comment: "Analytics integration fully validated. GET /api/analytics/performance?period=weekly correctly calculates: visit_performance.total_planned from follow-ups count, visit_performance.total_completed from follow-ups with status='done', visit_rate as (completed/planned*100). Daily breakdown shows follow-up counts per day. All calculations verified mathematically correct."
+        agent: "main"
+        comment: "Customer modeline alerts array eklendi. GET /api/customer-alerts endpoint'i eklendi."
+
+  - task: "FAZ 2 - Analytics visit_quality metrics"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Analytics endpoint'ine visit_quality objesi eklendi: duration (avg, short, long) ve rating (avg, distribution)"
 
 frontend:
-  - task: "Follow-Up creation dialog in CustomerDetailPage"
+  - task: "FAZ 2 - Visit Duration Timer UI"
     implemented: true
     working: true
     file: "/app/frontend/src/pages/CustomerDetailPage.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Takip Oluştur butonu ve dialog çalışıyor. Screenshot ile doğrulandı."
-      - working: true
-        agent: "testing"
-        comment: "✅ COMPREHENSIVE UI TESTING COMPLETED: Follow-up creation dialog fully functional. 'Takip Oluştur' button opens dialog correctly, all form fields (date, time, reason, note) work properly, form validation requires date field, success toast 'Takip oluşturuldu' appears on save, and follow-up is created successfully in backend. All Turkish UI text correct."
+        comment: "Ziyaret Süresi bölümü, Başlat/Bitir butonları ve sayaç ekranda görünüyor ve çalışıyor."
 
-  - task: "Follow-Up list on TodayPage"
+  - task: "FAZ 2 - Quality Rating UI"
     implemented: true
     working: true
-    file: "/app/frontend/src/pages/TodayPage.jsx"
+    file: "/app/frontend/src/pages/CustomerDetailPage.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Takipler bölümü TodayPage'de görünüyor ve tamamlama işlevi çalışıyor."
-      - working: true
-        agent: "testing"
-        comment: "✅ COMPREHENSIVE UI TESTING COMPLETED: Follow-up display and completion fully functional. 'Takipler' section header displays correctly, follow-ups show customer names, reason text, time (when set), and proper status indicators (blue=pending, green=completed, red=late). Follow-up completion works perfectly - clicking complete button shows success toast 'Takip tamamlandı' and status changes to 'Tamamlandı' with green background. All Turkish UI text correct."
+        comment: "1-5 yıldız puanlama UI'ı CustomerDetailPage'e eklendi."
 
-  - task: "Performance page with follow-up data"
+  - task: "FAZ 2 - Customer Alerts in CustomerCard"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/CustomerCard.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Müşteri kartlarında uyarı ikonu ve metni görünüyor. Kırmızı durum çubuğu var."
+
+  - task: "FAZ 2 - Customer Alerts in Form"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/CustomerFormPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Müşteri formuna uyarı seçim bölümü eklendi. 6 uyarı seçeneği mevcut."
+
+  - task: "FAZ 2 - Performance metrics UI"
     implemented: true
     working: true
     file: "/app/frontend/src/pages/PerformancePage.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Performans sayfası güncellenmiş analytics verileriyle çalışıyor"
-      - working: true
-        agent: "testing"
-        comment: "Backend analytics integration confirmed working. Performance page should now receive correct follow-up based metrics from /api/analytics/performance endpoint."
-      - working: true
-        agent: "testing"
-        comment: "✅ COMPREHENSIVE UI TESTING COMPLETED: Performance page integration fully functional. 'Ziyaret Oranı' displays correctly (%50), 'Toplam Tahsilat' shows proper currency format (₺10.000), 'Günlük Performans' chart renders properly, and all metrics reflect follow-up completion rates accurately. Performance cards show: Visit Rate %50 (2/4 visits), Total Collection ₺10.000 (1 customer), New Customers 12 (this week), Payment Rate %100. All Turkish UI text correct."
+        comment: "Ort. Ziyaret Süresi, Ort. Kalite, Çok Kısa/Uzun ziyaret metrikleri eklendi."
 
 metadata:
   created_by: "main_agent"
-  version: "1.0"
-  test_sequence: 2
+  version: "2.0"
+  test_sequence: 3
   run_ui: true
 
 test_plan:
   current_focus:
-    - "Follow-Up modülü tam test"
-    - "Analytics endpoint doğrulama"
+    - "FAZ 2 - Ziyaret Süresi Takibi"
+    - "FAZ 2 - Ziyaret Kalitesi Puanlama"
+    - "FAZ 2 - Müşteri Uyarıları"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -204,65 +240,19 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: |
-      Follow-Up modülü ve analytics entegrasyonu tamamlandı.
-      Test edilmesi gereken akışlar:
-      1. Yeni follow-up oluşturma (müşteri detay sayfasından)
-      2. Bugün sayfasında follow-up listesi ve tamamlama
-      3. Performans sayfasındaki ziyaret oranının follow-up verilerinden hesaplandığını doğrulama
-  - agent: "testing"
-    message: |
-      ✅ BACKEND TESTING COMPLETED SUCCESSFULLY
+      FAZ 2 geliştirmeleri tamamlandı. Test edilmesi gereken özellikler:
       
-      Follow-Up Module Tests:
-      - POST /api/follow-ups: ✅ Creates follow-ups with required fields (customer_id, due_date) and optional fields (due_time, reason, note)
-      - GET /api/follow-ups?date=: ✅ Returns array of follow-ups for specified date with customer info
-      - POST /api/follow-ups/{id}/complete: ✅ Changes status to "done", sets completed_at timestamp, returns Turkish message "Takip tamamlandı"
-      - GET /api/follow-ups/today: ✅ Returns today's follow-ups with customer details
+      1. BACKEND TESTLERİ:
+         - POST /api/visits/{id}/start - Ziyareti başlat
+         - POST /api/visits/{id}/end - Ziyareti bitir (süre hesaplanmalı)
+         - PUT /api/visits/{id} - quality_rating alanı eklendi
+         - PUT /api/customers/{id} - alerts array alanı eklendi
+         - GET /api/customer-alerts - Uyarı seçeneklerini döndür
+         - GET /api/analytics/performance - visit_quality objesi eklendi
       
-      Analytics Integration Tests:
-      - GET /api/analytics/performance?period=weekly: ✅ Correctly calculates metrics from follow-ups
-      - visit_performance.total_planned = count of follow-ups in date range ✅
-      - visit_performance.total_completed = count of follow-ups with status="done" ✅  
-      - visit_rate = (total_completed / total_planned * 100) ✅ Mathematical validation passed
-      - daily_breakdown shows follow-up counts per day (planned and completed) ✅
-      
-      All 21 backend tests passed. Follow-up module and analytics integration working perfectly.
-  - agent: "testing"
-    message: |
-      🎯 FRONTEND UI TESTING COMPLETED SUCCESSFULLY - ALL SCENARIOS PASSED
-      
-      ✅ TEST RESULTS SUMMARY:
-      
-      1. TODAY PAGE FOLLOW-UP DISPLAY: ✅ WORKING
-         - "Takipler" section header displays correctly
-         - Follow-ups show customer names, reason text, time (when set)
-         - Status indicators work: blue=pending, green=completed, red=late
-         - Found 3 follow-up items with proper Turkish text
-      
-      2. FOLLOW-UP COMPLETION: ✅ WORKING  
-         - Complete button functionality works perfectly
-         - Success toast "Takip tamamlandı" appears correctly
-         - Visual status changes from pending (blue) to completed (green)
-         - "✓ Tamamlandı" status indicator displays properly
-      
-      3. FOLLOW-UP CREATION FLOW: ✅ WORKING
-         - Navigation from Today page to CustomerDetailPage works
-         - "Takip Oluştur" button opens dialog correctly
-         - All form fields functional: date (required), time, reason, note
-         - Form validation works (requires date)
-         - Success toast "Takip oluşturuldu" appears on save
-         - Follow-up created successfully in backend
-      
-      4. PERFORMANCE PAGE INTEGRATION: ✅ WORKING
-         - "Ziyaret Oranı" displays correctly (%50)
-         - "Toplam Tahsilat" shows proper currency format (₺10.000)
-         - "Günlük Performans" chart renders properly
-         - All metrics reflect follow-up completion rates accurately
-         - Performance cards show correct data from follow-up analytics
-      
-      🌟 ALL TURKISH UI TEXT CORRECT AND PROPERLY DISPLAYED
-      🌟 ALL DATA-TESTID ATTRIBUTES WORKING FOR AUTOMATION
-      🌟 ALL TOAST MESSAGES APPEAR IN TURKISH AS EXPECTED
-      🌟 ALL VISUAL STATUS INDICATORS WORKING CORRECTLY
-      
-      Follow-Up module frontend implementation is FULLY FUNCTIONAL and ready for production use.
+      2. FRONTEND TESTLERİ:
+         - CustomerDetailPage: "Ziyareti Başlat" -> Sayaç -> "Ziyareti Bitir" akışı
+         - CustomerDetailPage: 1-5 yıldız kalite puanlama
+         - CustomerFormPage: Müşteri uyarıları seçimi
+         - TodayPage/CustomerCard: Uyarılı müşterilerde kırmızı ikon ve metin
+         - PerformancePage: Yeni metrikler (süre, kalite, uyarılar)
