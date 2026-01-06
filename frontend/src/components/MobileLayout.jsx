@@ -25,7 +25,8 @@ export default function MobileLayout({ children }) {
 
       {/* Bottom Navigation */}
       <nav
-        className="bottom-nav fixed bottom-0 left-0 right-0 border-t border-slate-100 safe-area-bottom z-50"
+        className="bottom-nav fixed bottom-0 left-0 right-0 border-t border-slate-100 safe-area-bottom"
+        style={{ zIndex: 99999 }}
         data-testid="bottom-navigation"
       >
         <div className="max-w-md mx-auto flex items-center justify-around h-16">
