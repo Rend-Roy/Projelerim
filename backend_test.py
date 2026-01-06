@@ -140,13 +140,36 @@ class TurkishCustomerVisitAPITester:
         return success, response
 
     def test_update_visit(self, visit_id):
-        """Test updating a visit"""
+        """Test updating a visit with new fields"""
         update_data = {
             "completed": True,
+            "payment_collected": True,
+            "payment_type": "Nakit",
+            "payment_amount": 150.50,
+            "customer_request": "Test müşteri talebi",
             "note": "Test ziyaret notu"
         }
         success, response = self.run_test(
-            "Update Visit",
+            "Update Visit with New Fields",
+            "PUT",
+            f"visits/{visit_id}",
+            200,
+            data=update_data
+        )
+        return success, response
+
+    def test_update_visit_not_completed(self, visit_id):
+        """Test updating a visit as not completed with skip reason"""
+        update_data = {
+            "completed": False,
+            "visit_skip_reason": "Müşteri yerinde değildi",
+            "payment_collected": False,
+            "payment_skip_reason": "Müşterinin ödeme gücü yok",
+            "customer_request": "Gelecek hafta tekrar gel",
+            "note": "Müşteri bulunamadı"
+        }
+        success, response = self.run_test(
+            "Update Visit Not Completed",
             "PUT",
             f"visits/{visit_id}",
             200,
