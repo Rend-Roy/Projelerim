@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { ArrowLeft, Trash2, MapPin, ChevronDown } from "lucide-react";
+import { ArrowLeft, Trash2, MapPin, ChevronDown, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -37,6 +37,16 @@ const DAYS = [
 ];
 
 const PRICE_STATUSES = ["Standart", "İskontolu"];
+
+// FAZ 2: Müşteri Uyarı Seçenekleri
+const CUSTOMER_ALERTS = [
+  "Geç öder",
+  "Fiyat hassas",
+  "Belirli saatlerde",
+  "Özel anlaşma var",
+  "Tahsilat problemi var",
+  "Sürekli erteleme yapıyor"
+];
 
 export default function CustomerFormPage() {
   const { id } = useParams();
