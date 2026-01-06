@@ -34,6 +34,9 @@ export default function TodayPage() {
   const [visits, setVisits] = useState({});
   const [loading, setLoading] = useState(true);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [dailyNote, setDailyNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
 
   const today = new Date();
   const englishDayName = format(today, "EEEE");
@@ -58,11 +61,29 @@ export default function TodayPage() {
         visitsMap[v.customer_id] = v;
       });
       setVisits(visitsMap);
+      
+      // Get daily note
+      const noteRes = await axios.get(`${API}/daily-note/${todayDateStr}`);
+      setDailyNote(noteRes.data.note || "");
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Veriler yüklenirken hata oluştu");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveDailyNote = async () => {
+    setSavingNote(true);
+    try {
+      await axios.post(`${API}/daily-note/${todayDateStr}`, { note: dailyNote });
+      toast.success("Gün sonu notu kaydedildi");
+      setNoteDialogOpen(false);
+    } catch (error) {
+      console.error("Error saving note:", error);
+      toast.error("Not kaydedilirken hata oluştu");
+    } finally {
+      setSavingNote(false);
     }
   };
 
