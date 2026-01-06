@@ -727,8 +727,9 @@ async def get_performance_analytics(period: str = "weekly", start_date: str = No
     
     end_dt = datetime.fromisoformat(end)
     
-    # Process visits
+    # Process visits for payment data
     visits_by_customer = {}
+    visit_completed_count = 0  # Ziyaret tamamlama sayısı (ödeme oranı için)
     for v in visits:
         cid = v.get("customer_id")
         if cid not in visits_by_customer:
@@ -736,7 +737,7 @@ async def get_performance_analytics(period: str = "weekly", start_date: str = No
         visits_by_customer[cid].append(v)
         
         if v.get("completed"):
-            total_completed += 1
+            visit_completed_count += 1
         elif v.get("visit_skip_reason"):
             reason = v.get("visit_skip_reason", "Belirtilmemiş")
             visit_skip_reasons[reason] = visit_skip_reasons.get(reason, 0) + 1
