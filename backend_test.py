@@ -716,11 +716,24 @@ def main():
         if not tester.validate_analytics_follow_up_integration(weekly_data):
             print("❌ Analytics follow-up integration validation failed")
         
+        # FAZ 2: Validate visit_quality metrics
+        if not tester.validate_analytics_visit_quality(weekly_data):
+            print("❌ Analytics visit_quality validation failed")
+        
         # Print key metrics for verification
         visit_perf = weekly_data.get('visit_performance', {})
         print(f"📊 Weekly Metrics - Planned: {visit_perf.get('total_planned', 0)}, "
               f"Completed: {visit_perf.get('total_completed', 0)}, "
               f"Rate: {visit_perf.get('visit_rate', 0)}%")
+        
+        # FAZ 2: Print visit quality metrics
+        visit_quality = weekly_data.get('visit_quality', {})
+        duration = visit_quality.get('duration', {})
+        rating = visit_quality.get('rating', {})
+        print(f"📊 Visit Quality - Avg Duration: {duration.get('average_minutes', 'N/A')} min, "
+              f"Avg Rating: {rating.get('average_rating', 'N/A')}/5, "
+              f"Short Visits: {duration.get('short_visits', 0)}, "
+              f"Long Visits: {duration.get('long_visits', 0)}")
     
     # Test monthly analytics
     monthly_success, monthly_data = tester.test_analytics_performance_monthly()
@@ -730,6 +743,83 @@ def main():
         print(f"📊 Monthly Metrics - Planned: {visit_perf.get('total_planned', 0)}, "
               f"Completed: {visit_perf.get('total_completed', 0)}, "
               f"Rate: {visit_perf.get('visit_rate', 0)}%")
+
+    # ===== FAZ 2: VISIT DURATION TRACKING TESTS =====
+    print("\n⏱️  Testing FAZ 2: Visit Duration Tracking...")
+    
+    if visit_id:
+        # Test starting a visit
+        start_success, start_response = tester.test_start_visit(visit_id)
+        if start_success:
+            if tester.validate_visit_duration_response(start_response, "start"):
+                print("✅ Visit start functionality working correctly")
+            
+            # Test starting already started visit (should fail)
+            tester.test_start_visit_already_started(visit_id)
+            
+            # Test ending the visit
+            end_success, end_response = tester.test_end_visit(visit_id)
+            if end_success:
+                if tester.validate_visit_duration_response(end_response, "end"):
+                    print("✅ Visit end functionality working correctly")
+                
+                # Test ending already ended visit (should fail)
+                tester.test_end_visit_already_ended(visit_id)
+        
+        # Create a new visit for testing end without start
+        new_visit_success, new_visit_data = tester.test_create_visit(customer_id)
+        if new_visit_success:
+            new_visit_id = new_visit_data.get('id')
+            if new_visit_id:
+                # Test ending visit that hasn't been started (should fail)
+                tester.test_end_visit_not_started(new_visit_id)
+
+    # ===== FAZ 2: QUALITY RATING TESTS =====
+    print("\n⭐ Testing FAZ 2: Quality Rating...")
+    
+    if visit_id:
+        # Test updating visit with quality rating
+        quality_success, quality_response = tester.test_update_visit_quality_rating(visit_id)
+        if quality_success:
+            if quality_response.get('quality_rating') == 4:
+                print("✅ Quality rating update working correctly")
+            else:
+                print(f"❌ Quality rating not saved correctly: {quality_response.get('quality_rating')}")
+        
+        # Test invalid quality rating
+        tester.test_update_visit_invalid_quality_rating(visit_id)
+
+    # ===== FAZ 2: CUSTOMER ALERTS TESTS =====
+    print("\n🚨 Testing FAZ 2: Customer Alerts...")
+    
+    # Test getting customer alert options
+    alerts_success, alerts_response = tester.test_get_customer_alert_options()
+    if alerts_success:
+        if tester.validate_customer_alerts_response(alerts_response):
+            print("✅ Customer alert options working correctly")
+    
+    # Test updating customer with alerts
+    if customer_id:
+        # Test with some alerts
+        alerts_update_success, alerts_update_response = tester.test_update_customer_with_alerts(customer_id)
+        if alerts_update_success:
+            saved_alerts = alerts_update_response.get('alerts', [])
+            expected_alerts = ["Geç öder", "Fiyat hassas"]
+            if set(saved_alerts) == set(expected_alerts):
+                print("✅ Customer alerts update working correctly")
+            else:
+                print(f"❌ Customer alerts not saved correctly: {saved_alerts}")
+        
+        # Test with all alerts
+        tester.test_update_customer_with_all_alerts(customer_id)
+        
+        # Test clearing alerts
+        clear_success, clear_response = tester.test_clear_customer_alerts(customer_id)
+        if clear_success:
+            if clear_response.get('alerts') == []:
+                print("✅ Customer alerts clearing working correctly")
+            else:
+                print(f"❌ Customer alerts not cleared: {clear_response.get('alerts')}")
 
     # Test deleting the customer (cleanup)
     tester.test_delete_customer(customer_id)
