@@ -1,0 +1,179 @@
+{
+  "identity": {
+    "name": "E1",
+    "role": "Creative Designer",
+    "mission": "Create a clean, thumb-friendly mobile CRM for field sales reps.",
+    "tone": "Professional, Efficient, Minimalist, Trustworthy",
+    "principles": [
+      "Mobile First: All touch targets > 44px. Bottom navigation for primary actions.",
+      "Clarity over Decoration: Data legibility is paramount.",
+      "One-Handed Use: Key interactions within thumb reach.",
+      "Turkish Context: Localized dates, currency, and terminology."
+    ]
+  },
+  "design_system": {
+    "colors": {
+      "primary": {
+        "name": "Royal Azure",
+        "hex": "#0055FF",
+        "tailwind": "bg-blue-600",
+        "description": "Primary action color. Used for buttons, active states, and key highlights."
+      },
+      "background": {
+        "app": "#F8FAFC",
+        "card": "#FFFFFF",
+        "tailwind_app": "bg-slate-50",
+        "tailwind_card": "bg-white"
+      },
+      "text": {
+        "heading": "#0F172A",
+        "body": "#334155",
+        "muted": "#64748B",
+        "tailwind_heading": "text-slate-900",
+        "tailwind_body": "text-slate-700",
+        "tailwind_muted": "text-slate-500"
+      },
+      "status": {
+        "success": "#10B981",
+        "warning": "#F59E0B",
+        "error": "#EF4444",
+        "neutral": "#E2E8F0"
+      }
+    },
+    "typography": {
+      "font_family": {
+        "heading": "Manrope, sans-serif",
+        "body": "Inter, sans-serif"
+      },
+      "scale": {
+        "h1": "text-3xl font-bold tracking-tight",
+        "h2": "text-2xl font-semibold tracking-tight",
+        "h3": "text-xl font-semibold",
+        "body_lg": "text-lg leading-relaxed",
+        "body_base": "text-base leading-normal",
+        "caption": "text-sm text-slate-500"
+      }
+    },
+    "spacing": {
+      "container_padding": "p-4 md:p-6",
+      "section_gap": "gap-6",
+      "item_gap": "gap-3",
+      "touch_target": "min-h-[44px]"
+    },
+    "radius": {
+      "card": "rounded-xl",
+      "button": "rounded-full",
+      "input": "rounded-lg"
+    },
+    "shadows": {
+      "card": "shadow-sm hover:shadow-md transition-shadow duration-200",
+      "floating": "shadow-lg shadow-blue-900/10"
+    }
+  },
+  "layout": {
+    "structure": "Mobile-first stack layout. Max-width container (md:max-w-md) centered on desktop for mobile simulation.",
+    "navigation": {
+      "type": "Bottom Tab Bar",
+      "style": "Fixed bottom, glassmorphism effect (backdrop-blur-lg bg-white/90), border-t border-slate-100",
+      "items": [
+        { "label": "Bugün", "icon": "CalendarCheck" },
+        { "label": "Müşteriler", "icon": "Users" },
+        { "label": "Ekle", "icon": "PlusCircle", "highlight": true }
+      ]
+    },
+    "header": {
+      "style": "Minimalist. Large page title left-aligned. Date/Subtitle below.",
+      "actions": "Right-aligned icon buttons (Settings, Profile)."
+    }
+  },
+  "components": {
+    "CustomerCard": {
+      "style": "bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between active:scale-[0.98] transition-transform",
+      "elements": [
+        "Left: Status Indicator (w-1.5 h-full absolute left-0 rounded-l-xl)",
+        "Content: Name (Bold), Region (Muted text-sm)",
+        "Right: Action Icon (ChevronRight or Phone)"
+      ]
+    },
+    "VisitStatusBadge": {
+      "variants": {
+        "pending": "bg-slate-100 text-slate-600",
+        "completed": "bg-green-100 text-green-700",
+        "cancelled": "bg-red-100 text-red-700"
+      }
+    },
+    "PrimaryButton": {
+      "style": "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-full shadow-lg shadow-blue-600/20 active:scale-95 transition-all"
+    },
+    "Input": {
+      "style": "h-12 bg-slate-50 border-slate-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg"
+    }
+  },
+  "pages": {
+    "home": {
+      "title": "Bugün",
+      "subtitle": "Dynamic Date (e.g., 24 Ekim, Salı)",
+      "sections": [
+        "Header: Greeting + Date",
+        "Progress: Simple progress bar (e.g., '3/8 Ziyaret Tamamlandı')",
+        "List: Vertical stack of CustomerCards filtered by 'Today'"
+      ]
+    },
+    "visit_detail": {
+      "title": "Ziyaret Detayı",
+      "sections": [
+        "Header: Customer Name + Region",
+        "MapPlaceholder: Visual context (use abstract map image)",
+        "ActionGrid: Quick actions (Call, Navigate, Mail)",
+        "Form: Visit Note (Textarea), Status (Select/Radio)",
+        "Footer: 'Ziyareti Tamamla' Button"
+      ]
+    },
+    "customer_list": {
+      "title": "Müşteriler",
+      "sections": [
+        "Search: Sticky search bar",
+        "List: Alphabetical or grouped list of all customers",
+        "FAB: Floating Action Button to add new customer"
+      ]
+    },
+    "customer_form": {
+      "title": "Müşteri Ekle/Düzenle",
+      "sections": [
+        "Form Fields: Name, Region, Phone, Address",
+        "Actions: Save (Primary), Cancel (Ghost)"
+      ]
+    }
+  },
+  "assets": {
+    "images": {
+      "avatars": [
+        "https://images.unsplash.com/photo-1623594675959-02360202d4d6?auto=format&fit=crop&w=100&h=100",
+        "https://images.unsplash.com/photo-1599242460737-5174dba06145?auto=format&fit=crop&w=100&h=100"
+      ],
+      "backgrounds": [
+        "https://images.unsplash.com/photo-1761449779811-33f7c48ed367?auto=format&fit=crop&w=800&q=80"
+      ],
+      "placeholders": {
+        "map": "https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?auto=format&fit=crop&w=600&q=80" 
+      }
+    },
+    "icons": "Lucide React (Calendar, Users, Plus, MapPin, Phone, ChevronRight, CheckCircle, XCircle)"
+  },
+  "instructions_to_main_agent": [
+    "1. Setup: Install 'lucide-react', 'date-fns' (with tr locale), 'clsx', 'tailwind-merge'.",
+    "2. Theme: Update tailwind.config.js with the 'Royal Azure' primary color and 'Manrope' font family.",
+    "3. Layout: Create a 'MobileLayout' wrapper component that handles the max-width and bottom navigation.",
+    "4. Components: Build 'CustomerCard' and 'VisitStatusBadge' first as they are core to the UI.",
+    "5. Data: Create a mock data store (customers.json) with Turkish names and regions.",
+    "6. Routing: Use React Router for navigation between Home, Detail, and List views.",
+    "7. Localization: Ensure all hardcoded text is in Turkish. Use 'date-fns' for date formatting."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Avoid generic 'AI slop' designs. Use generous padding (p-6) inside cards.",
+    "Do not use gradients for the main background; keep it clean slate-50.",
+    "Ensure text contrast is high (Slate-900 for headings, Slate-500 for muted).",
+    "Add 'active:scale-95' to all interactive elements for tactile mobile feel.",
+    "Use 'data-testid' for all interactive elements."
+  ]
+}
