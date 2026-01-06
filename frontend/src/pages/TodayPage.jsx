@@ -38,6 +38,7 @@ const dayNameMap = {
 export default function TodayPage() {
   const [customers, setCustomers] = useState([]);
   const [visits, setVisits] = useState({});
+  const [followUps, setFollowUps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [dailyNote, setDailyNote] = useState("");
@@ -73,6 +74,27 @@ export default function TodayPage() {
         visitsMap[v.customer_id] = v;
       });
       setVisits(visitsMap);
+      
+      // Get follow-ups for today (only when viewing today)
+      if (isToday) {
+        const followUpsRes = await axios.get(`${API}/follow-ups/today`);
+        setFollowUps(followUpsRes.data);
+      } else {
+        // Get follow-ups for selected date
+        const followUpsRes = await axios.get(`${API}/follow-ups?date=${selectedDateStr}`);
+        // Add customer info
+        const withCustomers = await Promise.all(
+          followUpsRes.data.map(async (fu) => {
+            try {
+              const customerRes = await axios.get(`${API}/customers/${fu.customer_id}`);
+              return { ...fu, customer: { name: customerRes.data.name, region: customerRes.data.region } };
+            } catch {
+              return fu;
+            }
+          })
+        );
+        setFollowUps(withCustomers);
+      }
       
       // Get daily note for selected date
       const noteRes = await axios.get(`${API}/daily-note/${selectedDateStr}`);
