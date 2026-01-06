@@ -420,6 +420,96 @@ export default function CustomerDetailPage() {
           </span>
         )}
       </Button>
+
+      {/* Follow-Up Dialog */}
+      <Dialog open={followUpDialogOpen} onOpenChange={setFollowUpDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-blue-600" />
+              Takip Oluştur
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">
+              {customer?.name} için yeni bir takip hatırlatması oluşturun.
+            </p>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Tarih *
+                </label>
+                <Input
+                  type="date"
+                  value={followUpData.due_date}
+                  onChange={(e) => setFollowUpData({...followUpData, due_date: e.target.value})}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="h-11"
+                  data-testid="followup-date"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Saat
+                </label>
+                <Input
+                  type="time"
+                  value={followUpData.due_time}
+                  onChange={(e) => setFollowUpData({...followUpData, due_time: e.target.value})}
+                  className="h-11"
+                  data-testid="followup-time"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Takip Nedeni
+              </label>
+              <Input
+                value={followUpData.reason}
+                onChange={(e) => setFollowUpData({...followUpData, reason: e.target.value})}
+                placeholder="Örn: Teklif takibi, ödeme hatırlatma..."
+                className="h-11"
+                data-testid="followup-reason"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Not
+              </label>
+              <Textarea
+                value={followUpData.note}
+                onChange={(e) => setFollowUpData({...followUpData, note: e.target.value})}
+                placeholder="Ek notlar..."
+                className="min-h-[80px] resize-none"
+                data-testid="followup-note"
+              />
+            </div>
+            
+            <Button
+              onClick={handleCreateFollowUp}
+              disabled={savingFollowUp}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+              data-testid="save-followup-button"
+            >
+              {savingFollowUp ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Kaydediliyor...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Takip Oluştur
+                </span>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
