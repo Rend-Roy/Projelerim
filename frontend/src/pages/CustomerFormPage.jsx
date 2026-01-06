@@ -262,31 +262,46 @@ export default function CustomerFormPage() {
             Ziyaret Günleri
           </label>
           <div className="grid grid-cols-2 gap-2">
-            {DAYS.map((day) => (
-              <div
-                key={day}
-                onClick={() => toggleDay(day)}
-                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                  formData.visit_days.includes(day)
-                    ? "bg-blue-50 border-blue-200"
-                    : "bg-white border-slate-200 hover:border-slate-300"
-                }`}
-                data-testid={`day-${day}`}
-              >
-                <Checkbox
-                  checked={formData.visit_days.includes(day)}
-                  className="pointer-events-none"
-                />
-                <span
-                  className={`text-sm font-medium ${
-                    formData.visit_days.includes(day)
-                      ? "text-blue-700"
-                      : "text-slate-600"
+            {DAYS.map((day) => {
+              const isSelected = formData.visit_days.includes(day);
+              return (
+                <div
+                  key={day}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleDay(day);
+                  }}
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${
+                    isSelected
+                      ? "bg-blue-50 border-blue-200"
+                      : "bg-white border-slate-200 hover:border-slate-300"
                   }`}
+                  data-testid={`day-${day}`}
                 >
-                  {day}
-                </span>
-              </div>
+                  <div
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                      isSelected
+                        ? "bg-blue-600 border-blue-600"
+                        : "border-slate-300 bg-white"
+                    }`}
+                  >
+                    {isSelected && (
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <span
+                    className={`text-sm font-medium ${
+                      isSelected ? "text-blue-700" : "text-slate-600"
+                    }`}
+                  >
+                    {day}
+                  </span>
+                </div>
+              );
+            })}
             ))}
           </div>
         </div>
