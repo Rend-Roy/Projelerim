@@ -182,6 +182,7 @@ export default function CustomerDetailPage() {
         payment_amount: paymentCollected && paymentAmount ? parseFloat(paymentAmount) : null,
         customer_request: customerRequest || null,
         note: note || null,
+        quality_rating: qualityRating > 0 ? qualityRating : null,
       });
       toast.success("Ziyaret kaydedildi");
       navigate(-1);
