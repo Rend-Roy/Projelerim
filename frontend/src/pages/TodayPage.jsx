@@ -137,6 +137,21 @@ export default function TodayPage() {
   const totalCount = customers.length;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
+  const handleCompleteFollowUp = async (followUpId) => {
+    try {
+      await axios.post(`${API}/follow-ups/${followUpId}/complete`);
+      toast.success("Takip tamamlandı");
+      fetchData();
+    } catch (error) {
+      console.error("Error completing follow-up:", error);
+      toast.error("Takip tamamlanamadı");
+    }
+  };
+
+  const lateFollowUps = followUps.filter(fu => fu.status === "late");
+  const pendingFollowUps = followUps.filter(fu => fu.status === "pending");
+  const doneFollowUps = followUps.filter(fu => fu.status === "done");
+
   const handleDownloadPdf = async () => {
     setDownloadingPdf(true);
     try {
