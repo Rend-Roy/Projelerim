@@ -795,14 +795,15 @@ async def get_performance_analytics(period: str = "weekly", start_date: str = No
     while date_cursor.date() <= end_dt.date():
         date_str = date_cursor.date().isoformat()
         day_visits = [v for v in visits if v.get("date") == date_str]
-        completed = sum(1 for v in day_visits if v.get("completed"))
+        day_followups = [fu for fu in follow_ups if fu.get("due_date") == date_str]
+        completed_followups = sum(1 for fu in day_followups if fu.get("status") == "done")
         payment = sum((v.get("payment_amount", 0) or 0) for v in day_visits if v.get("payment_collected"))
         
         daily_data.append({
             "date": date_str,
             "day": date_cursor.strftime("%a"),
-            "planned": len(day_visits),
-            "completed": completed,
+            "planned": len(day_followups),  # Planlanan = O günkü takipler
+            "completed": completed_followups,  # Tamamlanan = O günkü tamamlanan takipler
             "payment": payment
         })
         date_cursor += timedelta(days=1)
