@@ -118,6 +118,16 @@ export default function CustomerFormPage() {
     }));
   };
 
+  // FAZ 2: Uyarı toggle fonksiyonu
+  const toggleAlert = (alert) => {
+    setFormData((prev) => ({
+      ...prev,
+      alerts: prev.alerts.includes(alert)
+        ? prev.alerts.filter((a) => a !== alert)
+        : [...prev.alerts, alert],
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
