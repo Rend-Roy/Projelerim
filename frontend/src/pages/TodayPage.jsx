@@ -66,6 +66,33 @@ export default function TodayPage() {
   const totalCount = customers.length;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      const response = await axios.get(
+        `${API}/report/pdf/${turkishDayName}/${todayDateStr}`,
+        { responseType: "blob" }
+      );
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `ziyaret_raporu_${todayDateStr}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("PDF raporu indirildi");
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      toast.error("PDF indirirken hata oluştu");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="p-4 pt-6" data-testid="today-page">
       {/* Header */}
