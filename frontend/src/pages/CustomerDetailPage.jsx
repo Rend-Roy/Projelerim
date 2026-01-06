@@ -104,6 +104,12 @@ export default function CustomerDetailPage() {
       setPaymentAmount(visitRes.data.payment_amount ? String(visitRes.data.payment_amount) : "");
       setCustomerRequest(visitRes.data.customer_request || "");
       setNote(visitRes.data.note || "");
+      
+      // FAZ 2: Ziyaret süresi ve kalite verilerini yükle
+      setVisitStarted(!!visitRes.data.started_at);
+      setVisitEnded(!!visitRes.data.ended_at);
+      setVisitDuration(visitRes.data.duration_minutes);
+      setQualityRating(visitRes.data.quality_rating || 0);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Veriler yüklenirken hata oluştu");
