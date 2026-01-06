@@ -2,11 +2,19 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import axios from "axios";
-import { CalendarDays, RefreshCw, FileText, Download } from "lucide-react";
+import { CalendarDays, RefreshCw, FileText, Download, MessageSquare, Save } from "lucide-react";
 import CustomerCard from "@/components/CustomerCard";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
