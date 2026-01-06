@@ -391,8 +391,9 @@ async def upload_customers_excel(file: UploadFile = File(...)):
             
             # Handle price_status
             if 'price_status' in col_indices and row[col_indices['price_status']]:
-                ps = str(row[col_indices['price_status']]).strip().lower()
-                if ps in ['iskontolu', 'iskonto', 'indirimli', 'özel']:
+                ps = str(row[col_indices['price_status']]).strip()
+                ps_lower = ps.lower().replace('i̇', 'i').replace('İ', 'i')
+                if ps_lower in ['iskontolu', 'iskonto', 'indirimli', 'özel'] or ps == "İskontolu":
                     customer['price_status'] = "İskontolu"
             
             # Handle visit_days
