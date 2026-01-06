@@ -478,6 +478,7 @@ async def generate_daily_report_pdf(day_name: str, date: str):
     for i, customer in enumerate(customers):
         visit = visits_map.get(customer["id"], {})
         is_completed = visit.get("completed", False)
+        price_status = customer.get("price_status", "Standart")
         
         # Check if we need a new page
         if pdf.get_y() > 230:
@@ -502,11 +503,20 @@ async def generate_daily_report_pdf(day_name: str, date: str):
         pdf.set_font("DejaVu", "B", 11)
         pdf.set_text_color(15, 23, 42)
         pdf.set_xy(15, y_card)
-        pdf.cell(100, 6, f"{i+1}. {customer['name'][:40]}")
+        pdf.cell(85, 6, f"{i+1}. {customer['name'][:35]}")
         
         pdf.set_font("DejaVu", "", 9)
         pdf.set_text_color(100, 116, 139)
-        pdf.cell(40, 6, f"({customer['region']})")
+        pdf.cell(30, 6, f"({customer['region']})")
+        
+        # Fiyat statüsü badge
+        if price_status == "İskontolu":
+            pdf.set_fill_color(254, 243, 199)  # amber-100
+            pdf.set_text_color(180, 83, 9)  # amber-700
+        else:
+            pdf.set_fill_color(241, 245, 249)  # slate-100
+            pdf.set_text_color(71, 85, 105)  # slate-600
+        pdf.cell(25, 6, price_status, align="C", fill=True)
         
         # Ziyaret durumu badge
         pdf.set_xy(160, y_card)
