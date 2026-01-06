@@ -580,18 +580,26 @@ async def generate_daily_report_pdf(day_name: str, date: str):
         pdf.ln(5)
         pdf.set_font("DejaVu", "B", 14)
         pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 10, "BUGÜN EKLENEN YENİ MÜŞTERİLER", ln=True)
+        pdf.cell(0, 10, "BUGÜN EKLENEN YENİ MÜŞTERİLER (YENİ CARİ)", ln=True)
         
+        # Table header
         pdf.set_fill_color(219, 234, 254)
         pdf.set_draw_color(147, 197, 253)
+        pdf.set_font("DejaVu", "B", 9)
+        pdf.set_text_color(30, 64, 175)
+        pdf.cell(60, 8, "Müşteri Adı", border=1, fill=True)
+        pdf.cell(35, 8, "Bölge", border=1, fill=True)
+        pdf.cell(35, 8, "Fiyat Statüsü", border=1, fill=True)
+        pdf.cell(60, 8, "Telefon", border=1, fill=True, ln=True)
         
+        pdf.set_font("DejaVu", "", 9)
         for nc in new_customers:
-            pdf.set_font("DejaVu", "B", 10)
             pdf.set_text_color(30, 64, 175)
-            pdf.cell(80, 8, nc['name'][:35], border=1, fill=True)
-            pdf.set_font("DejaVu", "", 10)
-            pdf.cell(40, 8, nc['region'], border=1, fill=True)
-            pdf.cell(70, 8, nc.get('phone', '-'), border=1, fill=True, ln=True)
+            pdf.cell(60, 8, nc['name'][:30], border=1, fill=True)
+            pdf.cell(35, 8, nc['region'], border=1, fill=True)
+            price_st = nc.get('price_status', 'Standart')
+            pdf.cell(35, 8, price_st, border=1, fill=True)
+            pdf.cell(60, 8, nc.get('phone', '-'), border=1, fill=True, ln=True)
     
     # ===== GÜN SONU NOTU =====
     if daily_note_text:
