@@ -237,14 +237,38 @@ export default function CustomerFormPage() {
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
             Bölge *
           </label>
-          <Input
-            type="text"
-            value={formData.region}
-            onChange={(e) => handleChange("region", e.target.value)}
-            placeholder="Örn: Kadıköy"
-            className="h-12 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl"
-            data-testid="region-input"
-          />
+          {regions.length > 0 ? (
+            <Select
+              value={formData.region}
+              onValueChange={(value) => handleChange("region", value)}
+            >
+              <SelectTrigger 
+                className="h-12 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl"
+                data-testid="region-select"
+              >
+                <SelectValue placeholder="Bölge seçin..." />
+              </SelectTrigger>
+              <SelectContent>
+                {regions.map((region) => (
+                  <SelectItem key={region.id} value={region.name}>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-slate-400" />
+                      {region.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              type="text"
+              value={formData.region}
+              onChange={(e) => handleChange("region", e.target.value)}
+              placeholder="Önce bölge ekleyin veya manuel girin"
+              className="h-12 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl"
+              data-testid="region-input"
+            />
+          )}
         </div>
 
         {/* Phone */}
