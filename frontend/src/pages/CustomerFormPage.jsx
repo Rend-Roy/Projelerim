@@ -94,6 +94,7 @@ export default function CustomerFormPage() {
         address: res.data.address || "",
         price_status: res.data.price_status || "Standart",
         visit_days: res.data.visit_days || [],
+        alerts: res.data.alerts || [],  // FAZ 2
       });
     } catch (error) {
       console.error("Error fetching customer:", error);
