@@ -272,6 +272,7 @@ async def seed_data():
             "region": "Kadıköy",
             "phone": "0532 111 2233",
             "address": "Caferağa Mah. Moda Cad. No:15",
+            "price_status": "İskontolu",
             "visit_days": ["Pazartesi", "Perşembe"],
             "created_at": datetime.now(timezone.utc).isoformat()
         },
@@ -281,6 +282,7 @@ async def seed_data():
             "region": "Beşiktaş",
             "phone": "0533 222 3344",
             "address": "Sinanpaşa Mah. Çarşı Cad. No:8",
+            "price_status": "Standart",
             "visit_days": ["Salı", "Cuma"],
             "created_at": datetime.now(timezone.utc).isoformat()
         },
@@ -290,6 +292,7 @@ async def seed_data():
             "region": "Şişli",
             "phone": "0534 333 4455",
             "address": "Meşrutiyet Mah. Halaskargazi Cad. No:42",
+            "price_status": "İskontolu",
             "visit_days": ["Pazartesi", "Çarşamba", "Cuma"],
             "created_at": datetime.now(timezone.utc).isoformat()
         },
@@ -299,6 +302,7 @@ async def seed_data():
             "region": "Üsküdar",
             "phone": "0535 444 5566",
             "address": "Altunizade Mah. Kısıklı Cad. No:23",
+            "price_status": "Standart",
             "visit_days": ["Salı", "Perşembe", "Cumartesi"],
             "created_at": datetime.now(timezone.utc).isoformat()
         },
@@ -308,6 +312,7 @@ async def seed_data():
             "region": "Kadıköy",
             "phone": "0536 555 6677",
             "address": "Fenerbahçe Mah. Bağdat Cad. No:156",
+            "price_status": "Standart",
             "visit_days": ["Çarşamba", "Cumartesi"],
             "created_at": datetime.now(timezone.utc).isoformat()
         },
@@ -317,6 +322,7 @@ async def seed_data():
             "region": "Maltepe",
             "phone": "0537 666 7788",
             "address": "Cevizli Mah. D-100 Yan Yol No:88",
+            "price_status": "İskontolu",
             "visit_days": ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"],
             "created_at": datetime.now(timezone.utc).isoformat()
         },
@@ -326,6 +332,7 @@ async def seed_data():
             "region": "Ataşehir",
             "phone": "0538 777 8899",
             "address": "İçerenköy Mah. Kayışdağı Cad. No:34",
+            "price_status": "Standart",
             "visit_days": ["Perşembe", "Pazar"],
             "created_at": datetime.now(timezone.utc).isoformat()
         },
@@ -335,6 +342,7 @@ async def seed_data():
             "region": "Beşiktaş",
             "phone": "0539 888 9900",
             "address": "Levent Mah. Nispetiye Cad. No:67",
+            "price_status": "İskontolu",
             "visit_days": ["Pazartesi", "Cuma"],
             "created_at": datetime.now(timezone.utc).isoformat()
         }
