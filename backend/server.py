@@ -343,7 +343,7 @@ async def seed_data():
 # PDF Report endpoint
 @api_router.get("/report/pdf/{day_name}/{date}")
 async def generate_daily_report_pdf(day_name: str, date: str):
-    """Generate daily visit report as PDF"""
+    """Generate comprehensive daily visit report as PDF"""
     
     # Get customers for this day
     customers = await db.customers.find(
@@ -355,10 +355,33 @@ async def generate_daily_report_pdf(day_name: str, date: str):
     visits = await db.visits.find({"date": date}, {"_id": 0}).to_list(1000)
     visits_map = {v["customer_id"]: v for v in visits}
     
+    # Get new customers added today
+    all_customers = await db.customers.find({}, {"_id": 0}).to_list(1000)
+    new_customers = []
+    for c in all_customers:
+        created = c.get('created_at', '')
+        if isinstance(created, str) and created.startswith(date):
+            new_customers.append(c)
+        elif hasattr(created, 'strftime') and created.strftime('%Y-%m-%d') == date:
+            new_customers.append(c)
+    
+    # Get daily note
+    daily_note = await db.daily_notes.find_one({"date": date}, {"_id": 0})
+    daily_note_text = daily_note.get("note", "") if daily_note else ""
+    
     # Calculate stats
     total_count = len(customers)
     completed_count = sum(1 for c in customers if visits_map.get(c["id"], {}).get("completed", False))
     pending_count = total_count - completed_count
+    
+    # Calculate payment stats
+    total_payment = 0
+    payment_count = 0
+    for c in customers:
+        visit = visits_map.get(c["id"], {})
+        if visit.get("payment_collected"):
+            payment_count += 1
+            total_payment += visit.get("payment_amount", 0) or 0
     
     # Create PDF
     pdf = FPDF()
@@ -368,95 +391,212 @@ async def generate_daily_report_pdf(day_name: str, date: str):
     pdf.add_font("DejaVu", "", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", uni=True)
     pdf.add_font("DejaVu", "B", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", uni=True)
     
-    # Header
-    pdf.set_font("DejaVu", "B", 18)
-    pdf.set_text_color(15, 23, 42)  # slate-900
-    pdf.cell(0, 15, "Günlük Müşteri Ziyaret Raporu", ln=True, align="C")
-    
-    # Date info
-    pdf.set_font("DejaVu", "", 12)
-    pdf.set_text_color(71, 85, 105)  # slate-500
-    pdf.cell(0, 10, f"{day_name}, {date}", ln=True, align="C")
-    
-    pdf.ln(10)
-    
-    # Summary box
-    pdf.set_fill_color(248, 250, 252)  # slate-50
-    pdf.set_draw_color(226, 232, 240)  # slate-200
-    pdf.rect(15, pdf.get_y(), 180, 35, "DF")
-    
-    pdf.set_font("DejaVu", "B", 11)
+    # ===== HEADER =====
+    pdf.set_font("DejaVu", "B", 20)
     pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 12, "GÜNLÜK MÜŞTERİ ZİYARET RAPORU", ln=True, align="C")
+    
+    pdf.set_font("DejaVu", "", 12)
+    pdf.set_text_color(71, 85, 105)
+    pdf.cell(0, 8, f"{day_name}, {date}", ln=True, align="C")
+    
+    pdf.ln(8)
+    
+    # ===== ÖZET BÖLÜMÜ =====
+    pdf.set_fill_color(241, 245, 249)
+    pdf.set_draw_color(203, 213, 225)
+    pdf.rect(10, pdf.get_y(), 190, 45, "DF")
     
     y_start = pdf.get_y() + 5
-    pdf.set_xy(20, y_start)
-    pdf.cell(50, 8, "Toplam Ziyaret:", ln=False)
-    pdf.set_font("DejaVu", "", 11)
-    pdf.cell(30, 8, str(total_count), ln=True)
     
-    pdf.set_font("DejaVu", "B", 11)
-    pdf.set_xy(20, y_start + 10)
-    pdf.set_text_color(16, 185, 129)  # green-500
-    pdf.cell(50, 8, "Ziyaret Edilen:", ln=False)
-    pdf.set_font("DejaVu", "", 11)
-    pdf.cell(30, 8, str(completed_count), ln=True)
+    # Sol kolon - Ziyaret özeti
+    pdf.set_font("DejaVu", "B", 12)
+    pdf.set_text_color(15, 23, 42)
+    pdf.set_xy(15, y_start)
+    pdf.cell(80, 7, "ZİYARET ÖZETİ", ln=True)
     
-    pdf.set_font("DejaVu", "B", 11)
-    pdf.set_xy(20, y_start + 20)
-    pdf.set_text_color(239, 68, 68)  # red-500
-    pdf.cell(50, 8, "Ziyaret Edilmeyen:", ln=False)
-    pdf.set_font("DejaVu", "", 11)
-    pdf.cell(30, 8, str(pending_count), ln=True)
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_xy(15, y_start + 10)
+    pdf.cell(45, 6, "Toplam Planlanan:")
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.cell(30, 6, str(total_count), ln=True)
     
-    pdf.ln(25)
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_xy(15, y_start + 18)
+    pdf.set_text_color(16, 185, 129)
+    pdf.cell(45, 6, "Ziyaret Edilen:")
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.cell(30, 6, str(completed_count), ln=True)
     
-    # Customer details header
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_xy(15, y_start + 26)
+    pdf.set_text_color(239, 68, 68)
+    pdf.cell(45, 6, "Ziyaret Edilmeyen:")
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.cell(30, 6, str(pending_count), ln=True)
+    
+    # Sağ kolon - Tahsilat özeti
+    pdf.set_font("DejaVu", "B", 12)
+    pdf.set_text_color(15, 23, 42)
+    pdf.set_xy(110, y_start)
+    pdf.cell(80, 7, "TAHSİLAT ÖZETİ", ln=True)
+    
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_xy(110, y_start + 10)
+    pdf.cell(45, 6, "Tahsilat Yapılan:")
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.set_text_color(16, 185, 129)
+    pdf.cell(30, 6, str(payment_count), ln=True)
+    
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_text_color(15, 23, 42)
+    pdf.set_xy(110, y_start + 18)
+    pdf.cell(45, 6, "Toplam Tahsilat:")
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.set_text_color(0, 85, 255)
+    pdf.cell(30, 6, f"{total_payment:,.2f} TL", ln=True)
+    
+    pdf.ln(35)
+    
+    # ===== MÜŞTERİ DETAYLARI =====
     pdf.set_font("DejaVu", "B", 14)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 10, "Müşteri Detayları", ln=True)
+    pdf.cell(0, 10, "MÜŞTERİ ZİYARET DETAYLARI", ln=True)
+    pdf.ln(2)
     
-    pdf.ln(3)
-    
-    # Table header
-    pdf.set_fill_color(241, 245, 249)  # slate-100
-    pdf.set_font("DejaVu", "B", 10)
-    pdf.set_text_color(51, 65, 85)  # slate-700
-    pdf.cell(70, 10, "Müşteri Adı", border=1, fill=True)
-    pdf.cell(35, 10, "Bölge", border=1, fill=True)
-    pdf.cell(35, 10, "Durum", border=1, fill=True)
-    pdf.cell(50, 10, "Not", border=1, fill=True, ln=True)
-    
-    # Table rows
-    pdf.set_font("DejaVu", "", 9)
-    for customer in customers:
+    for i, customer in enumerate(customers):
         visit = visits_map.get(customer["id"], {})
         is_completed = visit.get("completed", False)
-        note = visit.get("note", "") or "-"
         
-        # Truncate note if too long
-        if len(note) > 30:
-            note = note[:27] + "..."
+        # Check if we need a new page
+        if pdf.get_y() > 230:
+            pdf.add_page()
         
-        pdf.set_text_color(51, 65, 85)
-        pdf.cell(70, 9, customer["name"][:35], border=1)
-        pdf.cell(35, 9, customer["region"], border=1)
+        # Customer card background
+        card_height = 35
+        if visit.get("customer_request"):
+            card_height += 8
+        if not is_completed and visit.get("visit_skip_reason"):
+            card_height += 8
+        if visit.get("payment_collected") or visit.get("payment_skip_reason"):
+            card_height += 8
+            
+        pdf.set_fill_color(255, 255, 255)
+        pdf.set_draw_color(226, 232, 240)
+        pdf.rect(10, pdf.get_y(), 190, card_height, "DF")
         
+        y_card = pdf.get_y() + 3
+        
+        # Müşteri adı ve bölge
+        pdf.set_font("DejaVu", "B", 11)
+        pdf.set_text_color(15, 23, 42)
+        pdf.set_xy(15, y_card)
+        pdf.cell(100, 6, f"{i+1}. {customer['name'][:40]}")
+        
+        pdf.set_font("DejaVu", "", 9)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(40, 6, f"({customer['region']})")
+        
+        # Ziyaret durumu badge
+        pdf.set_xy(160, y_card)
         if is_completed:
-            pdf.set_text_color(16, 185, 129)  # green
-            status = "Ziyaret Edildi"
+            pdf.set_fill_color(220, 252, 231)
+            pdf.set_text_color(22, 163, 74)
+            pdf.cell(35, 6, "ZİYARET EDİLDİ", align="C", fill=True)
         else:
-            pdf.set_text_color(239, 68, 68)  # red
-            status = "Bekliyor"
+            pdf.set_fill_color(254, 226, 226)
+            pdf.set_text_color(220, 38, 38)
+            pdf.cell(35, 6, "ZİYARET EDİLMEDİ", align="C", fill=True)
         
-        pdf.cell(35, 9, status, border=1)
-        pdf.set_text_color(51, 65, 85)
-        pdf.cell(50, 9, note, border=1, ln=True)
+        y_line = y_card + 10
+        
+        # Ziyaret edilmediyse sebebi
+        if not is_completed and visit.get("visit_skip_reason"):
+            pdf.set_font("DejaVu", "", 9)
+            pdf.set_text_color(220, 38, 38)
+            pdf.set_xy(15, y_line)
+            pdf.cell(0, 5, f"Ziyaret Edilmeme Sebebi: {visit['visit_skip_reason'][:60]}", ln=True)
+            y_line += 8
+        
+        # Tahsilat bilgisi
+        pdf.set_xy(15, y_line)
+        pdf.set_font("DejaVu", "", 9)
+        if visit.get("payment_collected"):
+            pdf.set_text_color(22, 163, 74)
+            payment_type = visit.get("payment_type", "Belirtilmemiş")
+            payment_amount = visit.get("payment_amount", 0) or 0
+            pdf.cell(0, 5, f"Tahsilat: {payment_type} - {payment_amount:,.2f} TL", ln=True)
+        elif visit.get("payment_skip_reason"):
+            pdf.set_text_color(234, 88, 12)
+            pdf.cell(0, 5, f"Tahsilat Yapılmadı: {visit['payment_skip_reason'][:50]}", ln=True)
+        else:
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(0, 5, "Tahsilat: Bilgi girilmemiş", ln=True)
+        y_line += 8
+        
+        # Müşteri talebi/notu
+        if visit.get("customer_request"):
+            pdf.set_xy(15, y_line)
+            pdf.set_font("DejaVu", "", 9)
+            pdf.set_text_color(59, 130, 246)
+            pdf.cell(0, 5, f"Müşteri Talebi: {visit['customer_request'][:70]}", ln=True)
+            y_line += 8
+        
+        # Genel not
+        if visit.get("note"):
+            pdf.set_xy(15, y_line)
+            pdf.set_font("DejaVu", "", 9)
+            pdf.set_text_color(71, 85, 105)
+            pdf.cell(0, 5, f"Not: {visit['note'][:70]}", ln=True)
+        
+        pdf.ln(card_height + 3)
     
-    # Footer
+    # ===== YENİ MÜŞTERİLER =====
+    if new_customers:
+        if pdf.get_y() > 200:
+            pdf.add_page()
+        
+        pdf.ln(5)
+        pdf.set_font("DejaVu", "B", 14)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(0, 10, "BUGÜN EKLENEN YENİ MÜŞTERİLER", ln=True)
+        
+        pdf.set_fill_color(219, 234, 254)
+        pdf.set_draw_color(147, 197, 253)
+        
+        for nc in new_customers:
+            pdf.set_font("DejaVu", "B", 10)
+            pdf.set_text_color(30, 64, 175)
+            pdf.cell(80, 8, nc['name'][:35], border=1, fill=True)
+            pdf.set_font("DejaVu", "", 10)
+            pdf.cell(40, 8, nc['region'], border=1, fill=True)
+            pdf.cell(70, 8, nc.get('phone', '-'), border=1, fill=True, ln=True)
+    
+    # ===== GÜN SONU NOTU =====
+    if daily_note_text:
+        if pdf.get_y() > 220:
+            pdf.add_page()
+        
+        pdf.ln(10)
+        pdf.set_font("DejaVu", "B", 14)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(0, 10, "SATIŞ TEMSİLCİSİ GÜN SONU NOTU", ln=True)
+        
+        pdf.set_fill_color(254, 252, 232)
+        pdf.set_draw_color(250, 204, 21)
+        pdf.rect(10, pdf.get_y(), 190, 25, "DF")
+        
+        pdf.set_font("DejaVu", "", 10)
+        pdf.set_text_color(113, 63, 18)
+        pdf.set_xy(15, pdf.get_y() + 5)
+        pdf.multi_cell(180, 6, daily_note_text[:300])
+    
+    # ===== FOOTER =====
     pdf.ln(15)
     pdf.set_font("DejaVu", "", 8)
-    pdf.set_text_color(148, 163, 184)  # slate-400
-    pdf.cell(0, 5, f"Rapor oluşturma tarihi: {datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M')}", ln=True, align="C")
+    pdf.set_text_color(148, 163, 184)
+    pdf.cell(0, 5, f"Rapor oluşturma tarihi: {datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M')} UTC", ln=True, align="C")
+    pdf.cell(0, 5, "Bu rapor otomatik olarak oluşturulmuştur.", ln=True, align="C")
     
     # Output PDF
     pdf_output = io.BytesIO()
