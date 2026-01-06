@@ -39,7 +39,8 @@ export default function MobileLayout({ children }) {
                 <button
                   key={item.path}
                   onClick={() => navigate(item.path)}
-                  className="flex flex-col items-center justify-center -mt-6"
+                  className="flex flex-col items-center justify-center -mt-6 relative"
+                  style={{ zIndex: 100000 }}
                   data-testid={`nav-${item.label.toLowerCase()}`}
                 >
                   <div className="fab w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center">
