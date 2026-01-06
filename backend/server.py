@@ -711,31 +711,21 @@ async def get_performance_analytics(period: str = "weekly", start_date: str = No
         "date": {"$gte": start, "$lte": end}
     }, {"_id": 0}).to_list(10000)
     
-    # Calculate metrics
-    total_planned = 0
-    total_completed = 0
+    # Get follow-ups in date range for planned visit calculation
+    follow_ups = await db.follow_ups.find({
+        "due_date": {"$gte": start, "$lte": end}
+    }, {"_id": 0}).to_list(10000)
+    
+    # Calculate metrics based on follow-ups
+    total_planned = len(follow_ups)  # Planlanan ziyaret = Toplam takip sayısı
+    total_completed = sum(1 for fu in follow_ups if fu.get("status") == "done")  # Tamamlanan takipler
+    
     total_payment = 0
     payment_count = 0
     payment_skip_reasons = {}
     visit_skip_reasons = {}
     
-    # Count planned visits per day
-    date_cursor = datetime.fromisoformat(start)
     end_dt = datetime.fromisoformat(end)
-    
-    while date_cursor.date() <= end_dt.date():
-        day_name_en = date_cursor.strftime("%A")
-        day_name_tr_map = {
-            "Monday": "Pazartesi", "Tuesday": "Salı", "Wednesday": "Çarşamba",
-            "Thursday": "Perşembe", "Friday": "Cuma", "Saturday": "Cumartesi", "Sunday": "Pazar"
-        }
-        day_name_tr = day_name_tr_map.get(day_name_en, "")
-        
-        for customer in all_customers:
-            if day_name_tr in customer.get("visit_days", []):
-                total_planned += 1
-        
-        date_cursor += timedelta(days=1)
     
     # Process visits
     visits_by_customer = {}
