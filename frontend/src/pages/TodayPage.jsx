@@ -385,6 +385,103 @@ export default function TodayPage() {
         </Button>
       </div>
 
+      {/* Follow-Ups Section */}
+      {followUps.length > 0 && (
+        <section className="mb-6">
+          <h2 className="text-lg font-semibold text-slate-800 mb-3 flex items-center gap-2">
+            <Bell className="w-5 h-5 text-blue-600" />
+            Takipler
+            {lateFollowUps.length > 0 && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+                {lateFollowUps.length} gecikmiş
+              </span>
+            )}
+          </h2>
+          
+          <div className="space-y-2">
+            {/* Late follow-ups */}
+            {lateFollowUps.map((fu) => (
+              <div
+                key={fu.id}
+                className="bg-red-50 rounded-xl p-4 border border-red-200"
+                data-testid={`followup-${fu.id}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-red-100 rounded-lg">
+                    <AlertCircle className="w-4 h-4 text-red-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-red-900">{fu.customer?.name || "Müşteri"}</h4>
+                    <p className="text-sm text-red-700">{fu.reason || "Takip"}</p>
+                    <p className="text-xs text-red-500 mt-1">
+                      Gecikmiş: {fu.due_date} {fu.due_time && `${fu.due_time}`}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleCompleteFollowUp(fu.id)}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    data-testid={`complete-followup-${fu.id}`}
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            
+            {/* Pending follow-ups */}
+            {pendingFollowUps.map((fu) => (
+              <div
+                key={fu.id}
+                className="bg-blue-50 rounded-xl p-4 border border-blue-200"
+                data-testid={`followup-${fu.id}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-blue-900">{fu.customer?.name || "Müşteri"}</h4>
+                    <p className="text-sm text-blue-700">{fu.reason || "Takip"}</p>
+                    {fu.due_time && (
+                      <p className="text-xs text-blue-500 mt-1">Saat: {fu.due_time}</p>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleCompleteFollowUp(fu.id)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    data-testid={`complete-followup-${fu.id}`}
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            
+            {/* Done follow-ups */}
+            {doneFollowUps.map((fu) => (
+              <div
+                key={fu.id}
+                className="bg-green-50 rounded-xl p-4 border border-green-200 opacity-75"
+                data-testid={`followup-${fu.id}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-green-900">{fu.customer?.name || "Müşteri"}</h4>
+                    <p className="text-sm text-green-700">{fu.reason || "Takip"}</p>
+                    <p className="text-xs text-green-600 mt-1">✓ Tamamlandı</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Customer List */}
       <section>
         <h2 className="text-lg font-semibold text-slate-800 mb-3">
