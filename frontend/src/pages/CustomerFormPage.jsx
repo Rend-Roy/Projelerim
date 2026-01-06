@@ -275,7 +275,6 @@ export default function CustomerFormPage() {
               >
                 <Checkbox
                   checked={formData.visit_days.includes(day)}
-                  onCheckedChange={() => toggleDay(day)}
                   className="pointer-events-none"
                 />
                 <span
