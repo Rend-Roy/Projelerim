@@ -118,7 +118,7 @@ export default function TodayPage() {
       </header>
 
       {/* Progress Section */}
-      <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-6">
+      <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-slate-700">Günlük İlerleme</span>
           <span className="text-sm font-semibold text-blue-600">
@@ -127,6 +127,28 @@ export default function TodayPage() {
         </div>
         <Progress value={progressPercent} className="h-2" data-testid="progress-bar" />
       </div>
+
+      {/* PDF Report Button */}
+      <Button
+        onClick={handleDownloadPdf}
+        disabled={downloadingPdf || totalCount === 0}
+        variant="outline"
+        className="w-full h-12 mb-6 border-slate-200 hover:bg-slate-50 rounded-xl font-medium"
+        data-testid="download-pdf-button"
+      >
+        {downloadingPdf ? (
+          <span className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+            İndiriliyor...
+          </span>
+        ) : (
+          <span className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-slate-600" />
+            Gün Sonu Raporu (PDF)
+            <Download className="w-4 h-4 text-slate-400" />
+          </span>
+        )}
+      </Button>
 
       {/* Customer List */}
       <section>
