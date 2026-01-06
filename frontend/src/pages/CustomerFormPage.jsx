@@ -1,0 +1,318 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { ArrowLeft, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const DAYS = [
+  "Pazartesi",
+  "Salı",
+  "Çarşamba",
+  "Perşembe",
+  "Cuma",
+  "Cumartesi",
+  "Pazar",
+];
+
+export default function CustomerFormPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const isEditMode = Boolean(id);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    region: "",
+    phone: "",
+    address: "",
+    visit_days: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (isEditMode) {
+      fetchCustomer();
+    }
+  }, [id]);
+
+  const fetchCustomer = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/customers/${id}`);
+      setFormData({
+        name: res.data.name || "",
+        region: res.data.region || "",
+        phone: res.data.phone || "",
+        address: res.data.address || "",
+        visit_days: res.data.visit_days || [],
+      });
+    } catch (error) {
+      console.error("Error fetching customer:", error);
+      toast.error("Müşteri bilgileri yüklenemedi");
+      navigate(-1);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const toggleDay = (day) => {
+    setFormData((prev) => ({
+      ...prev,
+      visit_days: prev.visit_days.includes(day)
+        ? prev.visit_days.filter((d) => d !== day)
+        : [...prev.visit_days, day],
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.name.trim()) {
+      toast.error("Müşteri adı zorunludur");
+      return;
+    }
+    if (!formData.region.trim()) {
+      toast.error("Bölge zorunludur");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (isEditMode) {
+        await axios.put(`${API}/customers/${id}`, formData);
+        toast.success("Müşteri güncellendi");
+      } else {
+        await axios.post(`${API}/customers`, formData);
+        toast.success("Müşteri eklendi");
+      }
+      navigate(-1);
+    } catch (error) {
+      console.error("Error saving customer:", error);
+      toast.error("Kaydetme sırasında hata oluştu");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await axios.delete(`${API}/customers/${id}`);
+      toast.success("Müşteri silindi");
+      navigate("/customers");
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      toast.error("Silme sırasında hata oluştu");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4 pt-6" data-testid="loading-state">
+        <div className="animate-pulse">
+          <div className="h-8 bg-slate-200 rounded w-1/4 mb-6" />
+          <div className="space-y-4">
+            <div className="h-12 bg-slate-200 rounded-xl" />
+            <div className="h-12 bg-slate-200 rounded-xl" />
+            <div className="h-12 bg-slate-200 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 pt-6" data-testid="customer-form-page">
+      {/* Header */}
+      <header className="mb-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors mb-4"
+          data-testid="back-button"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-medium">Geri</span>
+        </button>
+
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            {isEditMode ? "Müşteri Düzenle" : "Yeni Müşteri"}
+          </h1>
+          {isEditMode && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  className="p-2 rounded-full hover:bg-red-50 text-red-500 transition-colors"
+                  data-testid="delete-button"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Müşteriyi Sil</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Bu işlem geri alınamaz. Müşteri ve tüm ziyaret kayıtları kalıcı olarak silinecektir.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>İptal</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    className="bg-red-500 hover:bg-red-600"
+                    data-testid="confirm-delete"
+                  >
+                    {deleting ? "Siliniyor..." : "Sil"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
+      </header>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Name */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Müşteri Adı *
+          </label>
+          <Input
+            type="text"
+            value={formData.name}
+            onChange={(e) => handleChange("name", e.target.value)}
+            placeholder="Örn: Ahmet Market"
+            className="h-12 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl"
+            data-testid="name-input"
+          />
+        </div>
+
+        {/* Region */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Bölge *
+          </label>
+          <Input
+            type="text"
+            value={formData.region}
+            onChange={(e) => handleChange("region", e.target.value)}
+            placeholder="Örn: Kadıköy"
+            className="h-12 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl"
+            data-testid="region-input"
+          />
+        </div>
+
+        {/* Phone */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Telefon
+          </label>
+          <Input
+            type="tel"
+            value={formData.phone}
+            onChange={(e) => handleChange("phone", e.target.value)}
+            placeholder="Örn: 0532 111 2233"
+            className="h-12 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl"
+            data-testid="phone-input"
+          />
+        </div>
+
+        {/* Address */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Adres
+          </label>
+          <Input
+            type="text"
+            value={formData.address}
+            onChange={(e) => handleChange("address", e.target.value)}
+            placeholder="Örn: Moda Cad. No:15"
+            className="h-12 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl"
+            data-testid="address-input"
+          />
+        </div>
+
+        {/* Visit Days */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-3">
+            Ziyaret Günleri
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {DAYS.map((day) => (
+              <div
+                key={day}
+                onClick={() => toggleDay(day)}
+                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                  formData.visit_days.includes(day)
+                    ? "bg-blue-50 border-blue-200"
+                    : "bg-white border-slate-200 hover:border-slate-300"
+                }`}
+                data-testid={`day-${day}`}
+              >
+                <Checkbox
+                  checked={formData.visit_days.includes(day)}
+                  onCheckedChange={() => toggleDay(day)}
+                  className="pointer-events-none"
+                />
+                <span
+                  className={`text-sm font-medium ${
+                    formData.visit_days.includes(day)
+                      ? "text-blue-700"
+                      : "text-slate-600"
+                  }`}
+                >
+                  {day}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Submit Button */}
+        <div className="pt-4">
+          <Button
+            type="submit"
+            disabled={saving}
+            className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full shadow-lg shadow-blue-600/20 active:scale-95 transition-all text-base"
+            data-testid="submit-button"
+          >
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Kaydediliyor...
+              </span>
+            ) : isEditMode ? (
+              "Güncelle"
+            ) : (
+              "Müşteri Ekle"
+            )}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,10 +6,9 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -25,46 +24,266 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-
 # Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
+class Customer(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    name: str
+    region: str
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    visit_days: List[str] = []  # Pazartesi, Salı, Çarşamba, Perşembe, Cuma, Cumartesi, Pazar
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class CustomerCreate(BaseModel):
+    name: str
+    region: str
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    visit_days: List[str] = []
 
-# Add your routes to the router instead of directly to app
+class CustomerUpdate(BaseModel):
+    name: Optional[str] = None
+    region: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    visit_days: Optional[List[str]] = None
+
+class Visit(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    customer_id: str
+    date: str  # YYYY-MM-DD format
+    completed: bool = False
+    note: Optional[str] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class VisitUpdate(BaseModel):
+    completed: Optional[bool] = None
+    note: Optional[str] = None
+
+# Customer endpoints
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Müşteri Ziyaret Takip API"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+@api_router.get("/customers", response_model=List[Customer])
+async def get_customers():
+    customers = await db.customers.find({}, {"_id": 0}).to_list(1000)
+    for c in customers:
+        if isinstance(c.get('created_at'), str):
+            c['created_at'] = datetime.fromisoformat(c['created_at'])
+    return customers
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
+@api_router.get("/customers/{customer_id}", response_model=Customer)
+async def get_customer(customer_id: str):
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
+    if isinstance(customer.get('created_at'), str):
+        customer['created_at'] = datetime.fromisoformat(customer['created_at'])
+    return customer
+
+@api_router.post("/customers", response_model=Customer)
+async def create_customer(input: CustomerCreate):
+    customer_obj = Customer(**input.model_dump())
+    doc = customer_obj.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.customers.insert_one(doc)
+    return customer_obj
+
+@api_router.put("/customers/{customer_id}", response_model=Customer)
+async def update_customer(customer_id: str, input: CustomerUpdate):
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
     
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    if update_data:
+        await db.customers.update_one({"id": customer_id}, {"$set": update_data})
     
-    return status_checks
+    updated = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if isinstance(updated.get('created_at'), str):
+        updated['created_at'] = datetime.fromisoformat(updated['created_at'])
+    return updated
+
+@api_router.delete("/customers/{customer_id}")
+async def delete_customer(customer_id: str):
+    result = await db.customers.delete_one({"id": customer_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
+    # Delete related visits
+    await db.visits.delete_many({"customer_id": customer_id})
+    return {"message": "Müşteri silindi"}
+
+# Get customers for today based on visit_days
+@api_router.get("/customers/today/{day_name}")
+async def get_today_customers(day_name: str):
+    customers = await db.customers.find(
+        {"visit_days": day_name}, 
+        {"_id": 0}
+    ).to_list(1000)
+    for c in customers:
+        if isinstance(c.get('created_at'), str):
+            c['created_at'] = datetime.fromisoformat(c['created_at'])
+    return customers
+
+# Visit endpoints
+@api_router.get("/visits", response_model=List[Visit])
+async def get_visits(date: Optional[str] = None, customer_id: Optional[str] = None):
+    query = {}
+    if date:
+        query["date"] = date
+    if customer_id:
+        query["customer_id"] = customer_id
+    
+    visits = await db.visits.find(query, {"_id": 0}).to_list(1000)
+    for v in visits:
+        if isinstance(v.get('created_at'), str):
+            v['created_at'] = datetime.fromisoformat(v['created_at'])
+        if isinstance(v.get('completed_at'), str):
+            v['completed_at'] = datetime.fromisoformat(v['completed_at'])
+    return visits
+
+@api_router.get("/visits/{visit_id}", response_model=Visit)
+async def get_visit(visit_id: str):
+    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        raise HTTPException(status_code=404, detail="Ziyaret bulunamadı")
+    if isinstance(visit.get('created_at'), str):
+        visit['created_at'] = datetime.fromisoformat(visit['created_at'])
+    if isinstance(visit.get('completed_at'), str):
+        visit['completed_at'] = datetime.fromisoformat(visit['completed_at'])
+    return visit
+
+@api_router.post("/visits", response_model=Visit)
+async def create_or_get_visit(customer_id: str, date: str):
+    # Check if visit already exists
+    existing = await db.visits.find_one({"customer_id": customer_id, "date": date}, {"_id": 0})
+    if existing:
+        if isinstance(existing.get('created_at'), str):
+            existing['created_at'] = datetime.fromisoformat(existing['created_at'])
+        if isinstance(existing.get('completed_at'), str):
+            existing['completed_at'] = datetime.fromisoformat(existing['completed_at'])
+        return existing
+    
+    # Create new visit
+    visit_obj = Visit(customer_id=customer_id, date=date)
+    doc = visit_obj.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    if doc.get('completed_at'):
+        doc['completed_at'] = doc['completed_at'].isoformat()
+    await db.visits.insert_one(doc)
+    return visit_obj
+
+@api_router.put("/visits/{visit_id}", response_model=Visit)
+async def update_visit(visit_id: str, input: VisitUpdate):
+    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        raise HTTPException(status_code=404, detail="Ziyaret bulunamadı")
+    
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    if 'completed' in update_data and update_data['completed']:
+        update_data['completed_at'] = datetime.now(timezone.utc).isoformat()
+    
+    if update_data:
+        await db.visits.update_one({"id": visit_id}, {"$set": update_data})
+    
+    updated = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if isinstance(updated.get('created_at'), str):
+        updated['created_at'] = datetime.fromisoformat(updated['created_at'])
+    if isinstance(updated.get('completed_at'), str):
+        updated['completed_at'] = datetime.fromisoformat(updated['completed_at'])
+    return updated
+
+# Seed sample data
+@api_router.post("/seed")
+async def seed_data():
+    # Check if data already exists
+    count = await db.customers.count_documents({})
+    if count > 0:
+        return {"message": "Veriler zaten mevcut", "customer_count": count}
+    
+    sample_customers = [
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Ahmet Yılmaz Market",
+            "region": "Kadıköy",
+            "phone": "0532 111 2233",
+            "address": "Caferağa Mah. Moda Cad. No:15",
+            "visit_days": ["Pazartesi", "Perşembe"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Elif Bakkaliye",
+            "region": "Beşiktaş",
+            "phone": "0533 222 3344",
+            "address": "Sinanpaşa Mah. Çarşı Cad. No:8",
+            "visit_days": ["Salı", "Cuma"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Mehmet Gıda",
+            "region": "Şişli",
+            "phone": "0534 333 4455",
+            "address": "Meşrutiyet Mah. Halaskargazi Cad. No:42",
+            "visit_days": ["Pazartesi", "Çarşamba", "Cuma"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Ayşe Manav",
+            "region": "Üsküdar",
+            "phone": "0535 444 5566",
+            "address": "Altunizade Mah. Kısıklı Cad. No:23",
+            "visit_days": ["Salı", "Perşembe", "Cumartesi"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Can Süpermarket",
+            "region": "Kadıköy",
+            "phone": "0536 555 6677",
+            "address": "Fenerbahçe Mah. Bağdat Cad. No:156",
+            "visit_days": ["Çarşamba", "Cumartesi"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Demir Ticaret",
+            "region": "Maltepe",
+            "phone": "0537 666 7788",
+            "address": "Cevizli Mah. D-100 Yan Yol No:88",
+            "visit_days": ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Güneş Market",
+            "region": "Ataşehir",
+            "phone": "0538 777 8899",
+            "address": "İçerenköy Mah. Kayışdağı Cad. No:34",
+            "visit_days": ["Perşembe", "Pazar"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Yıldız Bakkal",
+            "region": "Beşiktaş",
+            "phone": "0539 888 9900",
+            "address": "Levent Mah. Nispetiye Cad. No:67",
+            "visit_days": ["Pazartesi", "Cuma"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+    ]
+    
+    await db.customers.insert_many(sample_customers)
+    return {"message": "Örnek veriler eklendi", "customer_count": len(sample_customers)}
 
 # Include the router in the main app
 app.include_router(api_router)
