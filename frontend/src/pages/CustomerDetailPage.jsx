@@ -138,6 +138,8 @@ export default function CustomerDetailPage() {
     );
   }
 
+  const priceStatus = customer.price_status || "Standart";
+
   return (
     <div className="p-4 pt-6 pb-24" data-testid="customer-detail-page">
       {/* Header */}
@@ -151,9 +153,18 @@ export default function CustomerDetailPage() {
           <span className="font-medium">Geri</span>
         </button>
 
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          {customer.name}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            {customer.name}
+          </h1>
+          <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+            priceStatus === "İskontolu" 
+              ? "bg-amber-100 text-amber-700" 
+              : "bg-slate-100 text-slate-600"
+          }`}>
+            {priceStatus}
+          </span>
+        </div>
         <div className="flex items-center gap-4 mt-2">
           <div className="flex items-center gap-1 text-slate-500">
             <MapPin className="w-4 h-4" />
