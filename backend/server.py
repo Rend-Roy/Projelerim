@@ -60,13 +60,37 @@ class Visit(BaseModel):
     customer_id: str
     date: str  # YYYY-MM-DD format
     completed: bool = False
-    note: Optional[str] = None
+    visit_skip_reason: Optional[str] = None  # Ziyaret edilmediyse sebebi
+    payment_collected: bool = False  # Tahsilat yapıldı mı
+    payment_skip_reason: Optional[str] = None  # Tahsilat yapılmadıysa sebebi
+    payment_type: Optional[str] = None  # Nakit, Kredi Kartı, Havale, Çek
+    payment_amount: Optional[float] = None  # Tahsilat tutarı
+    customer_request: Optional[str] = None  # Müşteri özel talep/notu
+    note: Optional[str] = None  # Genel not
     completed_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class VisitUpdate(BaseModel):
     completed: Optional[bool] = None
+    visit_skip_reason: Optional[str] = None
+    payment_collected: Optional[bool] = None
+    payment_skip_reason: Optional[str] = None
+    payment_type: Optional[str] = None
+    payment_amount: Optional[float] = None
+    customer_request: Optional[str] = None
     note: Optional[str] = None
+
+# Daily Report Note model
+class DailyReportNote(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    date: str  # YYYY-MM-DD format
+    note: str  # Gün sonu genel notu
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class DailyReportNoteUpdate(BaseModel):
+    note: str
 
 # Customer endpoints
 @api_router.get("/")
