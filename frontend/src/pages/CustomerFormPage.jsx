@@ -56,7 +56,17 @@ export default function CustomerFormPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const fetchRegions = async () => {
+    try {
+      const res = await axios.get(`${API}/regions`);
+      setRegions(res.data);
+    } catch (error) {
+      console.error("Error fetching regions:", error);
+    }
+  };
+
   useEffect(() => {
+    fetchRegions();
     if (isEditMode) {
       fetchCustomer();
     }
