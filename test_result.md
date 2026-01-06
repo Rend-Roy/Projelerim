@@ -131,11 +131,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "POST /api/visits/{id}/start ve /end endpoint'leri eklendi. Süre otomatik hesaplanıyor."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing completed. Visit duration tracking working perfectly: POST /api/visits/{id}/start sets started_at timestamp and returns Turkish message 'Ziyaret başlatıldı'. POST /api/visits/{id}/end calculates duration_minutes correctly and returns 'Ziyaret tamamlandı' with ended_at and duration. Error handling validated: fails correctly if already started/ended or not started yet. All response structures validated."
 
   - task: "FAZ 2 - Customer Alerts API"
     implemented: true
