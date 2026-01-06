@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { tr } from "date-fns/locale";
 import axios from "axios";
-import { CalendarDays, RefreshCw, FileText, Download, MessageSquare, Save } from "lucide-react";
+import { CalendarDays, RefreshCw, FileText, Download, MessageSquare, Save, ChevronLeft, ChevronRight } from "lucide-react";
 import CustomerCard from "@/components/CustomerCard";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -15,6 +16,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -37,33 +43,39 @@ export default function TodayPage() {
   const [dailyNote, setDailyNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
-
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  
+  // Selected date - defaults to today
   const today = new Date();
-  const englishDayName = format(today, "EEEE");
+  const [selectedDate, setSelectedDate] = useState(today);
+  
+  // Computed values based on selected date
+  const englishDayName = format(selectedDate, "EEEE");
   const turkishDayName = dayNameMap[englishDayName];
-  const formattedDate = format(today, "dd MMMM yyyy", { locale: tr });
-  const todayDateStr = format(today, "yyyy-MM-dd");
+  const formattedDate = format(selectedDate, "dd MMMM yyyy", { locale: tr });
+  const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
+  const isToday = isSameDay(selectedDate, today);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Seed data if needed
+      // Seed data if needed (only on first load)
       await axios.post(`${API}/seed`);
 
-      // Get customers for today
+      // Get customers for selected day
       const customersRes = await axios.get(`${API}/customers/today/${turkishDayName}`);
       setCustomers(customersRes.data);
 
-      // Get visits for today
-      const visitsRes = await axios.get(`${API}/visits?date=${todayDateStr}`);
+      // Get visits for selected date
+      const visitsRes = await axios.get(`${API}/visits?date=${selectedDateStr}`);
       const visitsMap = {};
       visitsRes.data.forEach((v) => {
         visitsMap[v.customer_id] = v;
       });
       setVisits(visitsMap);
       
-      // Get daily note
-      const noteRes = await axios.get(`${API}/daily-note/${todayDateStr}`);
+      // Get daily note for selected date
+      const noteRes = await axios.get(`${API}/daily-note/${selectedDateStr}`);
       setDailyNote(noteRes.data.note || "");
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -76,7 +88,7 @@ export default function TodayPage() {
   const saveDailyNote = async () => {
     setSavingNote(true);
     try {
-      await axios.post(`${API}/daily-note/${todayDateStr}`, { note: dailyNote });
+      await axios.post(`${API}/daily-note/${selectedDateStr}`, { note: dailyNote });
       toast.success("Gün sonu notu kaydedildi");
       setNoteDialogOpen(false);
     } catch (error) {
@@ -87,8 +99,16 @@ export default function TodayPage() {
     }
   };
 
+  // Fetch data when selected date changes
   useEffect(() => {
     fetchData();
+  }, [selectedDate]);
+
+  // Reset to today when component unmounts or page is navigated away
+  useEffect(() => {
+    return () => {
+      // This ensures when user comes back, it starts fresh with today
+    };
   }, []);
 
   const completedCount = Object.values(visits).filter((v) => v.completed).length;
@@ -99,15 +119,14 @@ export default function TodayPage() {
     setDownloadingPdf(true);
     try {
       const response = await axios.get(
-        `${API}/report/pdf/${turkishDayName}/${todayDateStr}`,
+        `${API}/report/pdf/${turkishDayName}/${selectedDateStr}`,
         { responseType: "blob" }
       );
       
-      // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `ziyaret_raporu_${todayDateStr}.pdf`);
+      link.setAttribute("download", `ziyaret_raporu_${selectedDateStr}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -122,10 +141,33 @@ export default function TodayPage() {
     }
   };
 
+  const handleDateSelect = (date) => {
+    if (date) {
+      setSelectedDate(date);
+      setCalendarOpen(false);
+    }
+  };
+
+  const goToPreviousDay = () => {
+    const prev = new Date(selectedDate);
+    prev.setDate(prev.getDate() - 1);
+    setSelectedDate(prev);
+  };
+
+  const goToNextDay = () => {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + 1);
+    setSelectedDate(next);
+  };
+
+  const goToToday = () => {
+    setSelectedDate(new Date());
+  };
+
   return (
     <div className="p-4 pt-6" data-testid="today-page">
       {/* Header */}
-      <header className="mb-6">
+      <header className="mb-5">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
@@ -134,6 +176,11 @@ export default function TodayPage() {
             <div className="flex items-center gap-2 mt-1">
               <CalendarDays className="w-4 h-4 text-blue-600" />
               <span className="text-slate-500">{formattedDate}</span>
+              {!isToday && (
+                <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
+                  {format(selectedDate, "yyyy-MM-dd") < format(today, "yyyy-MM-dd") ? "Geçmiş" : "Gelecek"}
+                </span>
+              )}
             </div>
           </div>
           <button
@@ -146,10 +193,78 @@ export default function TodayPage() {
         </div>
       </header>
 
+      {/* Date Navigation */}
+      <div className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm mb-4">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={goToPreviousDay}
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            data-testid="prev-day"
+          >
+            <ChevronLeft className="w-5 h-5 text-slate-600" />
+          </button>
+          
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className="flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg hover:bg-slate-50 transition-colors"
+                data-testid="date-picker-trigger"
+              >
+                <CalendarDays className="w-4 h-4 text-blue-600" />
+                <span className="font-medium text-slate-700">
+                  {isToday ? "Bugün" : format(selectedDate, "d MMM", { locale: tr })}
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="center">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateSelect}
+                locale={tr}
+                initialFocus
+              />
+              {!isToday && (
+                <div className="p-2 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={goToToday}
+                  >
+                    Bugüne Dön
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+          
+          <button
+            onClick={goToNextDay}
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            data-testid="next-day"
+          >
+            <ChevronRight className="w-5 h-5 text-slate-600" />
+          </button>
+        </div>
+        
+        {!isToday && (
+          <button
+            onClick={goToToday}
+            className="w-full mt-2 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            data-testid="go-to-today"
+          >
+            Bugüne Dön
+          </button>
+        )}
+      </div>
+
       {/* Progress Section */}
       <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-slate-700">Günlük İlerleme</span>
+          <span className="text-sm font-medium text-slate-700">
+            {isToday ? "Günlük İlerleme" : `${format(selectedDate, "d MMM", { locale: tr })} İlerlemesi`}
+          </span>
           <span className="text-sm font-semibold text-blue-600">
             {completedCount}/{totalCount} Ziyaret
           </span>
@@ -174,7 +289,9 @@ export default function TodayPage() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Gün Sonu Notu</DialogTitle>
+              <DialogTitle>
+                Gün Sonu Notu - {format(selectedDate, "d MMMM", { locale: tr })}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <p className="text-sm text-slate-500">
@@ -234,7 +351,7 @@ export default function TodayPage() {
       {/* Customer List */}
       <section>
         <h2 className="text-lg font-semibold text-slate-800 mb-3">
-          Bugünkü Ziyaretler
+          {isToday ? "Bugünkü Ziyaretler" : `${turkishDayName} Ziyaretleri`}
         </h2>
 
         {loading ? (
@@ -258,7 +375,7 @@ export default function TodayPage() {
               <CalendarDays className="w-8 h-8 text-slate-400" />
             </div>
             <h3 className="font-semibold text-slate-700 mb-1">
-              Bugün için ziyaret yok
+              {isToday ? "Bugün için ziyaret yok" : "Bu gün için ziyaret yok"}
             </h3>
             <p className="text-sm text-slate-500">
               {turkishDayName} günü için planlanmış müşteri bulunmuyor.
@@ -271,7 +388,7 @@ export default function TodayPage() {
                 key={customer.id}
                 customer={customer}
                 visit={visits[customer.id]}
-                date={todayDateStr}
+                date={selectedDateStr}
               />
             ))}
           </div>
