@@ -7,6 +7,8 @@ import CustomersPage from "@/pages/CustomersPage";
 import CustomerDetailPage from "@/pages/CustomerDetailPage";
 import CustomerFormPage from "@/pages/CustomerFormPage";
 import PerformancePage from "@/pages/PerformancePage";
+import RegionsPage from "@/pages/RegionsPage";
+import RegionDetailPage from "@/pages/RegionDetailPage";
 
 function App() {
   return (
@@ -15,8 +17,10 @@ function App() {
         <MobileLayout>
           <Routes>
             <Route path="/" element={<TodayPage />} />
-            <Route path="/performance" element={<PerformancePage />} />
             <Route path="/customers" element={<CustomersPage />} />
+            <Route path="/regions" element={<RegionsPage />} />
+            <Route path="/regions/:id" element={<RegionDetailPage />} />
+            <Route path="/performance" element={<PerformancePage />} />
             <Route path="/customer/:id" element={<CustomerDetailPage />} />
             <Route path="/customer/new" element={<CustomerFormPage />} />
             <Route path="/customer/:id/edit" element={<CustomerFormPage />} />
