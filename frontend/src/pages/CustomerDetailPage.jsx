@@ -74,6 +74,13 @@ export default function CustomerDetailPage() {
   });
   const [savingFollowUp, setSavingFollowUp] = useState(false);
   
+  // FAZ 2: Ziyaret süresi ve kalite states
+  const [visitStarted, setVisitStarted] = useState(false);
+  const [visitEnded, setVisitEnded] = useState(false);
+  const [visitDuration, setVisitDuration] = useState(null);
+  const [qualityRating, setQualityRating] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
