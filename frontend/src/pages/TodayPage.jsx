@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { format, isSameDay } from "date-fns";
 import { tr } from "date-fns/locale";
 import axios from "axios";
-import { CalendarDays, RefreshCw, FileText, Download, MessageSquare, Save, ChevronLeft, ChevronRight, Bell, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { CalendarDays, RefreshCw, FileText, Download, MessageSquare, Save, ChevronLeft, ChevronRight, Bell, CheckCircle, Clock, AlertCircle, AlertTriangle } from "lucide-react";
 import CustomerCard from "@/components/CustomerCard";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
