@@ -1,10 +1,11 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { CalendarCheck, Users, PlusCircle } from "lucide-react";
+import { CalendarCheck, Users, PlusCircle, BarChart3 } from "lucide-react";
 
 const navItems = [
   { path: "/", label: "Bugün", icon: CalendarCheck },
-  { path: "/customers", label: "Müşteriler", icon: Users },
+  { path: "/performance", label: "Performans", icon: BarChart3 },
   { path: "/customer/new", label: "Ekle", icon: PlusCircle, highlight: true },
+  { path: "/customers", label: "Müşteriler", icon: Users },
 ];
 
 export default function MobileLayout({ children }) {
