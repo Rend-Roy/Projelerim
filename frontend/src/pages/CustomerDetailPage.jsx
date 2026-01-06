@@ -186,14 +186,26 @@ export default function CustomerDetailPage() {
     <div className="p-4 pt-6 pb-24" data-testid="customer-detail-page">
       {/* Header */}
       <header className="mb-5">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors mb-3"
-          data-testid="back-button"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-medium">Geri</span>
-        </button>
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
+            data-testid="back-button"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="font-medium">Geri</span>
+          </button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFollowUpDialogOpen(true)}
+            className="flex items-center gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50"
+            data-testid="create-followup-button"
+          >
+            <Bell className="w-4 h-4" />
+            Takip Oluştur
+          </Button>
+        </div>
 
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
