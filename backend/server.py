@@ -57,6 +57,23 @@ class CustomerUpdate(BaseModel):
     price_status: Optional[str] = None
     visit_days: Optional[List[str]] = None
 
+# Region models
+class Region(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class RegionCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class RegionUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
 class Visit(BaseModel):
     model_config = ConfigDict(extra="ignore")
     
