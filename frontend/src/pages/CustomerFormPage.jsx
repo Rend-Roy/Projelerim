@@ -29,6 +29,8 @@ const DAYS = [
   "Pazar",
 ];
 
+const PRICE_STATUSES = ["Standart", "İskontolu"];
+
 export default function CustomerFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -39,6 +41,7 @@ export default function CustomerFormPage() {
     region: "",
     phone: "",
     address: "",
+    price_status: "Standart",
     visit_days: [],
   });
   const [loading, setLoading] = useState(false);
@@ -60,6 +63,7 @@ export default function CustomerFormPage() {
         region: res.data.region || "",
         phone: res.data.phone || "",
         address: res.data.address || "",
+        price_status: res.data.price_status || "Standart",
         visit_days: res.data.visit_days || [],
       });
     } catch (error) {
