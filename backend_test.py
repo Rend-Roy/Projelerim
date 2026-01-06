@@ -187,12 +187,46 @@ class TurkishCustomerVisitAPITester:
         )
         return success, response
 
-    def test_delete_customer(self, customer_id):
-        """Test deleting a customer"""
+    def test_daily_note_get(self):
+        """Test getting daily note"""
+        today_str = datetime.now().strftime("%Y-%m-%d")
         success, response = self.run_test(
-            "Delete Customer",
-            "DELETE",
-            f"customers/{customer_id}",
+            "Get Daily Note",
+            "GET",
+            f"daily-note/{today_str}",
+            200
+        )
+        return success, response
+
+    def test_daily_note_save(self):
+        """Test saving daily note"""
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        note_data = {
+            "note": "Test gün sonu notu - bugün 5 müşteri ziyaret edildi, genel durum iyi."
+        }
+        success, response = self.run_test(
+            "Save Daily Note",
+            "POST",
+            f"daily-note/{today_str}",
+            200,
+            data=note_data
+        )
+        return success, response
+
+    def test_pdf_report(self):
+        """Test PDF report generation"""
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        # Get current day name in Turkish
+        day_names = {
+            0: "Pazartesi", 1: "Salı", 2: "Çarşamba", 3: "Perşembe", 
+            4: "Cuma", 5: "Cumartesi", 6: "Pazar"
+        }
+        today_day = day_names[datetime.now().weekday()]
+        
+        success, response = self.run_test(
+            "Generate PDF Report",
+            "GET",
+            f"report/pdf/{today_day}/{today_str}",
             200
         )
         return success, response
