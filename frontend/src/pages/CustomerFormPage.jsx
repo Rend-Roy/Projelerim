@@ -259,6 +259,59 @@ export default function CustomerFormPage() {
           />
         </div>
 
+        {/* Price Status */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-3">
+            Fiyat Statüsü
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {PRICE_STATUSES.map((status) => {
+              const isSelected = formData.price_status === status;
+              return (
+                <div
+                  key={status}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleChange("price_status", status);
+                  }}
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${
+                    isSelected
+                      ? status === "İskontolu" 
+                        ? "bg-amber-50 border-amber-200" 
+                        : "bg-blue-50 border-blue-200"
+                      : "bg-white border-slate-200 hover:border-slate-300"
+                  }`}
+                  data-testid={`price-${status}`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      isSelected
+                        ? status === "İskontolu"
+                          ? "bg-amber-500 border-amber-500"
+                          : "bg-blue-600 border-blue-600"
+                        : "border-slate-300 bg-white"
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="w-2 h-2 rounded-full bg-white" />
+                    )}
+                  </div>
+                  <span
+                    className={`text-sm font-medium ${
+                      isSelected 
+                        ? status === "İskontolu" ? "text-amber-700" : "text-blue-700"
+                        : "text-slate-600"
+                    }`}
+                  >
+                    {status}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Visit Days */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-3">
