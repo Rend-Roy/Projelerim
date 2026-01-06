@@ -420,48 +420,6 @@ async def upload_customers_excel(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Dosya işlenirken hata: {str(e)}")
 
-# Download sample Excel template
-@api_router.get("/customers/template")
-async def download_template():
-    """Örnek Excel şablonu indir"""
-    from openpyxl import Workbook
-    
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Müşteriler"
-    
-    # Headers
-    headers = ["Müşteri Adı", "Bölge", "Telefon", "Adres", "Fiyat Statüsü", "Ziyaret Günleri"]
-    for col, header in enumerate(headers, 1):
-        ws.cell(row=1, column=col, value=header)
-    
-    # Sample data
-    sample_data = [
-        ["Örnek Market", "Kadıköy", "0532 111 2233", "Moda Cad. No:15", "Standart", "Pazartesi, Çarşamba, Cuma"],
-        ["ABC Bakkaliye", "Beşiktaş", "0533 222 3344", "Çarşı Cad. No:8", "İskontolu", "Salı, Perşembe"],
-    ]
-    for row_num, row_data in enumerate(sample_data, 2):
-        for col, value in enumerate(row_data, 1):
-            ws.cell(row=row_num, column=col, value=value)
-    
-    # Adjust column widths
-    ws.column_dimensions['A'].width = 25
-    ws.column_dimensions['B'].width = 15
-    ws.column_dimensions['C'].width = 18
-    ws.column_dimensions['D'].width = 30
-    ws.column_dimensions['E'].width = 15
-    ws.column_dimensions['F'].width = 35
-    
-    output = io.BytesIO()
-    wb.save(output)
-    output.seek(0)
-    
-    return StreamingResponse(
-        output,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=musteri_sablonu.xlsx"}
-    )
-
 # Seed sample data
 @api_router.post("/seed")
 async def seed_data():
