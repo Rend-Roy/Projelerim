@@ -118,6 +118,101 @@ class DailyReportNoteUpdate(BaseModel):
 async def root():
     return {"message": "Müşteri Ziyaret Takip API"}
 
+# Region endpoints
+@api_router.get("/regions", response_model=List[Region])
+async def get_regions():
+    regions = await db.regions.find({}, {"_id": 0}).to_list(1000)
+    for r in regions:
+        if isinstance(r.get('created_at'), str):
+            r['created_at'] = datetime.fromisoformat(r['created_at'])
+    return regions
+
+@api_router.get("/regions/{region_id}")
+async def get_region(region_id: str):
+    region = await db.regions.find_one({"id": region_id}, {"_id": 0})
+    if not region:
+        raise HTTPException(status_code=404, detail="Bölge bulunamadı")
+    
+    # Get customer count
+    customer_count = await db.customers.count_documents({"region": region["name"]})
+    region["customer_count"] = customer_count
+    
+    if isinstance(region.get('created_at'), str):
+        region['created_at'] = datetime.fromisoformat(region['created_at'])
+    return region
+
+@api_router.post("/regions", response_model=Region)
+async def create_region(input: RegionCreate):
+    # Check if region name already exists
+    existing = await db.regions.find_one({"name": input.name})
+    if existing:
+        raise HTTPException(status_code=400, detail="Bu isimde bir bölge zaten var")
+    
+    region_obj = Region(**input.model_dump())
+    doc = region_obj.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.regions.insert_one(doc)
+    return region_obj
+
+@api_router.put("/regions/{region_id}", response_model=Region)
+async def update_region(region_id: str, input: RegionUpdate):
+    region = await db.regions.find_one({"id": region_id}, {"_id": 0})
+    if not region:
+        raise HTTPException(status_code=404, detail="Bölge bulunamadı")
+    
+    old_name = region["name"]
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    
+    # Check if new name already exists
+    if "name" in update_data and update_data["name"] != old_name:
+        existing = await db.regions.find_one({"name": update_data["name"]})
+        if existing:
+            raise HTTPException(status_code=400, detail="Bu isimde bir bölge zaten var")
+    
+    if update_data:
+        await db.regions.update_one({"id": region_id}, {"$set": update_data})
+        
+        # Update customer regions if name changed
+        if "name" in update_data and update_data["name"] != old_name:
+            await db.customers.update_many(
+                {"region": old_name},
+                {"$set": {"region": update_data["name"]}}
+            )
+    
+    updated = await db.regions.find_one({"id": region_id}, {"_id": 0})
+    if isinstance(updated.get('created_at'), str):
+        updated['created_at'] = datetime.fromisoformat(updated['created_at'])
+    return updated
+
+@api_router.delete("/regions/{region_id}")
+async def delete_region(region_id: str):
+    region = await db.regions.find_one({"id": region_id}, {"_id": 0})
+    if not region:
+        raise HTTPException(status_code=404, detail="Bölge bulunamadı")
+    
+    # Check if there are customers in this region
+    customer_count = await db.customers.count_documents({"region": region["name"]})
+    if customer_count > 0:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Bu bölgede {customer_count} müşteri var. Önce müşterileri başka bölgeye taşıyın."
+        )
+    
+    await db.regions.delete_one({"id": region_id})
+    return {"message": "Bölge silindi"}
+
+@api_router.get("/regions/{region_id}/customers")
+async def get_region_customers(region_id: str):
+    region = await db.regions.find_one({"id": region_id}, {"_id": 0})
+    if not region:
+        raise HTTPException(status_code=404, detail="Bölge bulunamadı")
+    
+    customers = await db.customers.find({"region": region["name"]}, {"_id": 0}).to_list(1000)
+    for c in customers:
+        if isinstance(c.get('created_at'), str):
+            c['created_at'] = datetime.fromisoformat(c['created_at'])
+    return customers
+
 @api_router.get("/customers", response_model=List[Customer])
 async def get_customers():
     customers = await db.customers.find({}, {"_id": 0}).to_list(1000)
