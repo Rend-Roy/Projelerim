@@ -232,7 +232,103 @@ export default function PerformancePage() {
             Ziyaret edilen müşterilerden
           </p>
         </div>
+
+        {/* FAZ 2: Ortalama Ziyaret Süresi */}
+        <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-cyan-100 rounded-lg">
+              <Clock className="w-4 h-4 text-cyan-600" />
+            </div>
+            <span className="text-xs text-slate-500">Ort. Ziyaret Süresi</span>
+          </div>
+          <div className="flex items-end gap-1">
+            <span className="text-2xl font-bold text-slate-900">
+              {data?.visit_quality?.duration?.average_minutes != null 
+                ? `${data.visit_quality.duration.average_minutes} dk`
+                : "-"
+              }
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            {data?.visit_quality?.duration?.total_measured || 0} ölçüm
+          </p>
+        </div>
+
+        {/* FAZ 2: Ortalama Kalite */}
+        <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-amber-100 rounded-lg">
+              <Star className="w-4 h-4 text-amber-500" />
+            </div>
+            <span className="text-xs text-slate-500">Ort. Kalite</span>
+          </div>
+          <div className="flex items-end gap-1">
+            <span className="text-2xl font-bold text-slate-900">
+              {data?.visit_quality?.rating?.average_rating != null 
+                ? `${data.visit_quality.rating.average_rating}/5`
+                : "-"
+              }
+            </span>
+            {data?.visit_quality?.rating?.average_rating && (
+              <Star className="w-5 h-5 text-amber-400 fill-amber-400 mb-1" />
+            )}
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            {data?.visit_quality?.rating?.total_rated || 0} değerlendirme
+          </p>
+        </div>
       </div>
+
+      {/* FAZ 2: Ziyaret Süresi Uyarıları */}
+      {data?.visit_quality?.duration?.total_measured > 0 && (
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          {/* Çok Kısa Ziyaretler */}
+          <div className={`bg-white rounded-xl p-3 border shadow-sm ${
+            data.visit_quality.duration.short_visits > 0 
+              ? "border-orange-200 bg-orange-50" 
+              : "border-slate-100"
+          }`}>
+            <div className="flex items-center gap-2 mb-1">
+              <AlertTriangle className={`w-4 h-4 ${
+                data.visit_quality.duration.short_visits > 0 
+                  ? "text-orange-500" 
+                  : "text-slate-400"
+              }`} />
+              <span className="text-xs text-slate-600">Çok Kısa (&lt;5dk)</span>
+            </div>
+            <span className={`text-xl font-bold ${
+              data.visit_quality.duration.short_visits > 0 
+                ? "text-orange-600" 
+                : "text-slate-700"
+            }`}>
+              {data.visit_quality.duration.short_visits}
+            </span>
+          </div>
+          
+          {/* Çok Uzun Ziyaretler */}
+          <div className={`bg-white rounded-xl p-3 border shadow-sm ${
+            data.visit_quality.duration.long_visits > 0 
+              ? "border-blue-200 bg-blue-50" 
+              : "border-slate-100"
+          }`}>
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className={`w-4 h-4 ${
+                data.visit_quality.duration.long_visits > 0 
+                  ? "text-blue-500" 
+                  : "text-slate-400"
+              }`} />
+              <span className="text-xs text-slate-600">Çok Uzun (&gt;60dk)</span>
+            </div>
+            <span className={`text-xl font-bold ${
+              data.visit_quality.duration.long_visits > 0 
+                ? "text-blue-600" 
+                : "text-slate-700"
+            }`}>
+              {data.visit_quality.duration.long_visits}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Daily Performance Chart */}
       <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-5">
