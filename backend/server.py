@@ -813,6 +813,12 @@ async def get_performance_analytics(period: str = "weekly", start_date: str = No
     # Process visits for payment data
     visits_by_customer = {}
     visit_completed_count = 0  # Ziyaret tamamlama sayısı (ödeme oranı için)
+    
+    # FAZ 2: Ziyaret süresi ve kalite metrikleri
+    duration_values = []
+    quality_values = []
+    quality_payment_data = []  # (kalite, tahsilat) tuple'ları
+    
     for v in visits:
         cid = v.get("customer_id")
         if cid not in visits_by_customer:
@@ -827,10 +833,40 @@ async def get_performance_analytics(period: str = "weekly", start_date: str = No
         
         if v.get("payment_collected"):
             payment_count += 1
-            total_payment += v.get("payment_amount", 0) or 0
+            payment_amount = v.get("payment_amount", 0) or 0
+            total_payment += payment_amount
+            
+            # Kalite-Tahsilat ilişkisi için veri topla
+            if v.get("quality_rating"):
+                quality_payment_data.append((v.get("quality_rating"), payment_amount))
         elif v.get("payment_skip_reason"):
             reason = v.get("payment_skip_reason", "Belirtilmemiş")
             payment_skip_reasons[reason] = payment_skip_reasons.get(reason, 0) + 1
+        
+        # FAZ 2: Süre ve kalite verilerini topla
+        if v.get("duration_minutes") is not None:
+            duration_values.append(v.get("duration_minutes"))
+        if v.get("quality_rating") is not None:
+            quality_values.append(v.get("quality_rating"))
+    
+    # FAZ 2: Süre analizi
+    avg_duration = round(sum(duration_values) / len(duration_values), 1) if duration_values else None
+    short_visits = len([d for d in duration_values if d < 5])  # <5 dakika
+    long_visits = len([d for d in duration_values if d > 60])  # >60 dakika
+    
+    # FAZ 2: Kalite analizi
+    avg_quality = round(sum(quality_values) / len(quality_values), 1) if quality_values else None
+    quality_distribution = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    for q in quality_values:
+        if q in quality_distribution:
+            quality_distribution[q] += 1
+    
+    # Kalite-Tahsilat ilişkisi (ortalama tahsilat her kalite seviyesi için)
+    quality_payment_relation = {}
+    for rating in range(1, 6):
+        payments = [p for (q, p) in quality_payment_data if q == rating]
+        if payments:
+            quality_payment_relation[rating] = round(sum(payments) / len(payments), 2)
     
     # New customers in period
     new_customers = []
