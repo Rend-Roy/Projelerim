@@ -295,7 +295,63 @@ export default function CustomerDetailPage() {
             </a>
           )}
         </div>
+        
+        {/* FAZ 2: Müşteri Uyarıları */}
+        {customer.alerts && customer.alerts.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5" data-testid="customer-alerts">
+            {customer.alerts.map((alert, index) => (
+              <span 
+                key={index}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-full border border-red-200"
+              >
+                <AlertTriangle className="w-3 h-3" />
+                {alert}
+              </span>
+            ))}
+          </div>
+        )}
       </header>
+
+      {/* FAZ 2: Ziyaret Süresi Takibi */}
+      <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-3">
+        <h2 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
+          <Clock className="w-5 h-5 text-slate-600" />
+          Ziyaret Süresi
+        </h2>
+        
+        {!visitStarted ? (
+          <Button
+            onClick={handleStartVisit}
+            className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg"
+            data-testid="start-visit-button"
+          >
+            <Play className="w-5 h-5 mr-2" />
+            Ziyareti Başlat
+          </Button>
+        ) : !visitEnded ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-center gap-2 py-4 bg-green-50 rounded-lg">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-2xl font-mono font-bold text-green-700">{formatElapsedTime(elapsedTime)}</span>
+            </div>
+            <Button
+              onClick={handleEndVisit}
+              className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg"
+              data-testid="end-visit-button"
+            >
+              <Square className="w-5 h-5 mr-2" />
+              Ziyareti Bitir
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-2 py-4 bg-slate-50 rounded-lg">
+            <Clock className="w-5 h-5 text-slate-500" />
+            <span className="text-lg font-medium text-slate-700">
+              Ziyaret süresi: <span className="font-bold">{visitDuration} dakika</span>
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Ziyaret Durumu */}
       <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-3">
