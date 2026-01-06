@@ -288,6 +288,140 @@ async def seed_data():
     await db.customers.insert_many(sample_customers)
     return {"message": "Örnek veriler eklendi", "customer_count": len(sample_customers)}
 
+# PDF Report endpoint
+@api_router.get("/report/pdf/{day_name}/{date}")
+async def generate_daily_report_pdf(day_name: str, date: str):
+    """Generate daily visit report as PDF"""
+    
+    # Get customers for this day
+    customers = await db.customers.find(
+        {"visit_days": day_name}, 
+        {"_id": 0}
+    ).to_list(1000)
+    
+    # Get visits for this date
+    visits = await db.visits.find({"date": date}, {"_id": 0}).to_list(1000)
+    visits_map = {v["customer_id"]: v for v in visits}
+    
+    # Calculate stats
+    total_count = len(customers)
+    completed_count = sum(1 for c in customers if visits_map.get(c["id"], {}).get("completed", False))
+    pending_count = total_count - completed_count
+    
+    # Create PDF
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Add Unicode font for Turkish characters
+    pdf.add_font("DejaVu", "", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", uni=True)
+    pdf.add_font("DejaVu", "B", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", uni=True)
+    
+    # Header
+    pdf.set_font("DejaVu", "B", 18)
+    pdf.set_text_color(15, 23, 42)  # slate-900
+    pdf.cell(0, 15, "Günlük Müşteri Ziyaret Raporu", ln=True, align="C")
+    
+    # Date info
+    pdf.set_font("DejaVu", "", 12)
+    pdf.set_text_color(71, 85, 105)  # slate-500
+    pdf.cell(0, 10, f"{day_name}, {date}", ln=True, align="C")
+    
+    pdf.ln(10)
+    
+    # Summary box
+    pdf.set_fill_color(248, 250, 252)  # slate-50
+    pdf.set_draw_color(226, 232, 240)  # slate-200
+    pdf.rect(15, pdf.get_y(), 180, 35, "DF")
+    
+    pdf.set_font("DejaVu", "B", 11)
+    pdf.set_text_color(15, 23, 42)
+    
+    y_start = pdf.get_y() + 5
+    pdf.set_xy(20, y_start)
+    pdf.cell(50, 8, "Toplam Ziyaret:", ln=False)
+    pdf.set_font("DejaVu", "", 11)
+    pdf.cell(30, 8, str(total_count), ln=True)
+    
+    pdf.set_font("DejaVu", "B", 11)
+    pdf.set_xy(20, y_start + 10)
+    pdf.set_text_color(16, 185, 129)  # green-500
+    pdf.cell(50, 8, "Ziyaret Edilen:", ln=False)
+    pdf.set_font("DejaVu", "", 11)
+    pdf.cell(30, 8, str(completed_count), ln=True)
+    
+    pdf.set_font("DejaVu", "B", 11)
+    pdf.set_xy(20, y_start + 20)
+    pdf.set_text_color(239, 68, 68)  # red-500
+    pdf.cell(50, 8, "Ziyaret Edilmeyen:", ln=False)
+    pdf.set_font("DejaVu", "", 11)
+    pdf.cell(30, 8, str(pending_count), ln=True)
+    
+    pdf.ln(25)
+    
+    # Customer details header
+    pdf.set_font("DejaVu", "B", 14)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 10, "Müşteri Detayları", ln=True)
+    
+    pdf.ln(3)
+    
+    # Table header
+    pdf.set_fill_color(241, 245, 249)  # slate-100
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.set_text_color(51, 65, 85)  # slate-700
+    pdf.cell(70, 10, "Müşteri Adı", border=1, fill=True)
+    pdf.cell(35, 10, "Bölge", border=1, fill=True)
+    pdf.cell(35, 10, "Durum", border=1, fill=True)
+    pdf.cell(50, 10, "Not", border=1, fill=True, ln=True)
+    
+    # Table rows
+    pdf.set_font("DejaVu", "", 9)
+    for customer in customers:
+        visit = visits_map.get(customer["id"], {})
+        is_completed = visit.get("completed", False)
+        note = visit.get("note", "") or "-"
+        
+        # Truncate note if too long
+        if len(note) > 30:
+            note = note[:27] + "..."
+        
+        pdf.set_text_color(51, 65, 85)
+        pdf.cell(70, 9, customer["name"][:35], border=1)
+        pdf.cell(35, 9, customer["region"], border=1)
+        
+        if is_completed:
+            pdf.set_text_color(16, 185, 129)  # green
+            status = "Ziyaret Edildi"
+        else:
+            pdf.set_text_color(239, 68, 68)  # red
+            status = "Bekliyor"
+        
+        pdf.cell(35, 9, status, border=1)
+        pdf.set_text_color(51, 65, 85)
+        pdf.cell(50, 9, note, border=1, ln=True)
+    
+    # Footer
+    pdf.ln(15)
+    pdf.set_font("DejaVu", "", 8)
+    pdf.set_text_color(148, 163, 184)  # slate-400
+    pdf.cell(0, 5, f"Rapor oluşturma tarihi: {datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M')}", ln=True, align="C")
+    
+    # Output PDF
+    pdf_output = io.BytesIO()
+    pdf_content = pdf.output()
+    pdf_output.write(pdf_content)
+    pdf_output.seek(0)
+    
+    filename = f"ziyaret_raporu_{date}.pdf"
+    
+    return StreamingResponse(
+        pdf_output,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
+
 # Include the router in the main app
 app.include_router(api_router)
 
