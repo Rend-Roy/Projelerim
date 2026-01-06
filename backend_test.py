@@ -292,11 +292,20 @@ def main():
     if visit_success:
         visit_id = visit_data.get('id')
         if visit_id:
-            # Test updating the visit
+            # Test updating the visit with new fields
             tester.test_update_visit(visit_id)
+            # Test updating visit as not completed
+            tester.test_update_visit_not_completed(visit_id)
 
     # Test getting all visits
     tester.test_get_visits()
+
+    # Test daily note functionality
+    tester.test_daily_note_get()
+    tester.test_daily_note_save()
+    
+    # Test PDF report generation
+    tester.test_pdf_report()
 
     # Test deleting the customer (cleanup)
     tester.test_delete_customer(customer_id)
