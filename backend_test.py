@@ -241,6 +241,118 @@ class TurkishCustomerVisitAPITester:
         )
         return success, response
 
+    # Follow-Up CRUD Tests
+    def test_create_follow_up(self, customer_id):
+        """Test creating a follow-up"""
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        follow_up_data = {
+            "customer_id": customer_id,
+            "due_date": today_str,
+            "due_time": "14:30",
+            "reason": "Ürün tanıtımı",
+            "note": "Yeni ürünleri göstermek için takip"
+        }
+        success, response = self.run_test(
+            "Create Follow-Up",
+            "POST",
+            "follow-ups",
+            200,
+            data=follow_up_data
+        )
+        return success, response
+
+    def test_get_follow_ups_by_date(self):
+        """Test getting follow-ups for a specific date"""
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        success, response = self.run_test(
+            "Get Follow-Ups by Date",
+            "GET",
+            "follow-ups",
+            200,
+            params={"date": today_str}
+        )
+        return success, response
+
+    def test_complete_follow_up(self, follow_up_id):
+        """Test completing a follow-up"""
+        success, response = self.run_test(
+            "Complete Follow-Up",
+            "POST",
+            f"follow-ups/{follow_up_id}/complete",
+            200
+        )
+        return success, response
+
+    def test_get_today_follow_ups(self):
+        """Test getting today's follow-ups"""
+        success, response = self.run_test(
+            "Get Today Follow-Ups",
+            "GET",
+            "follow-ups/today",
+            200
+        )
+        return success, response
+
+    # Analytics Integration Tests
+    def test_analytics_performance_weekly(self):
+        """Test analytics performance endpoint with weekly period"""
+        success, response = self.run_test(
+            "Analytics Performance Weekly",
+            "GET",
+            "analytics/performance",
+            200,
+            params={"period": "weekly"}
+        )
+        return success, response
+
+    def test_analytics_performance_monthly(self):
+        """Test analytics performance endpoint with monthly period"""
+        success, response = self.run_test(
+            "Analytics Performance Monthly",
+            "GET",
+            "analytics/performance",
+            200,
+            params={"period": "monthly"}
+        )
+        return success, response
+
+    def validate_analytics_follow_up_integration(self, analytics_data):
+        """Validate that analytics correctly integrates follow-up data"""
+        print("\n🔍 Validating Analytics Follow-Up Integration...")
+        
+        visit_performance = analytics_data.get('visit_performance', {})
+        total_planned = visit_performance.get('total_planned', 0)
+        total_completed = visit_performance.get('total_completed', 0)
+        visit_rate = visit_performance.get('visit_rate', 0)
+        
+        # Check if visit_performance data exists
+        if total_planned == 0:
+            print("⚠️  Warning: No planned visits found in analytics")
+            return True  # This might be expected if no follow-ups exist
+        
+        # Validate visit rate calculation
+        expected_rate = (total_completed / total_planned * 100) if total_planned > 0 else 0
+        if abs(visit_rate - expected_rate) > 0.1:  # Allow small floating point differences
+            print(f"❌ Visit rate calculation error: Expected {expected_rate:.1f}%, got {visit_rate}%")
+            return False
+        
+        # Check daily breakdown
+        daily_breakdown = analytics_data.get('daily_breakdown', [])
+        if not daily_breakdown:
+            print("❌ No daily breakdown data found")
+            return False
+        
+        # Validate daily breakdown structure
+        for day_data in daily_breakdown:
+            required_fields = ['date', 'planned', 'completed']
+            for field in required_fields:
+                if field not in day_data:
+                    print(f"❌ Missing field '{field}' in daily breakdown")
+                    return False
+        
+        print("✅ Analytics follow-up integration validation passed")
+        return True
+
 def main():
     print("🚀 Starting Turkish Customer Visit Tracking API Tests")
     print("=" * 60)
