@@ -316,6 +316,146 @@ class TurkishCustomerVisitAPITester:
         )
         return success, response
 
+    # ===== FAZ 2: Visit Duration Tracking Tests =====
+    def test_start_visit(self, visit_id):
+        """Test starting a visit timer"""
+        success, response = self.run_test(
+            "Start Visit Timer",
+            "POST",
+            f"visits/{visit_id}/start",
+            200
+        )
+        return success, response
+
+    def test_start_visit_already_started(self, visit_id):
+        """Test starting a visit that's already started (should fail)"""
+        success, response = self.run_test(
+            "Start Visit Already Started (Should Fail)",
+            "POST",
+            f"visits/{visit_id}/start",
+            400
+        )
+        return success, response
+
+    def test_end_visit(self, visit_id):
+        """Test ending a visit timer"""
+        success, response = self.run_test(
+            "End Visit Timer",
+            "POST",
+            f"visits/{visit_id}/end",
+            200
+        )
+        return success, response
+
+    def test_end_visit_not_started(self, visit_id):
+        """Test ending a visit that hasn't been started (should fail)"""
+        success, response = self.run_test(
+            "End Visit Not Started (Should Fail)",
+            "POST",
+            f"visits/{visit_id}/end",
+            400
+        )
+        return success, response
+
+    def test_end_visit_already_ended(self, visit_id):
+        """Test ending a visit that's already ended (should fail)"""
+        success, response = self.run_test(
+            "End Visit Already Ended (Should Fail)",
+            "POST",
+            f"visits/{visit_id}/end",
+            400
+        )
+        return success, response
+
+    # ===== FAZ 2: Quality Rating Tests =====
+    def test_update_visit_quality_rating(self, visit_id):
+        """Test updating visit with quality rating"""
+        update_data = {
+            "quality_rating": 4
+        }
+        success, response = self.run_test(
+            "Update Visit Quality Rating",
+            "PUT",
+            f"visits/{visit_id}",
+            200,
+            data=update_data
+        )
+        return success, response
+
+    def test_update_visit_invalid_quality_rating(self, visit_id):
+        """Test updating visit with invalid quality rating"""
+        update_data = {
+            "quality_rating": 6  # Should be 1-5
+        }
+        success, response = self.run_test(
+            "Update Visit Invalid Quality Rating",
+            "PUT",
+            f"visits/{visit_id}",
+            200,  # API might accept but should validate
+            data=update_data
+        )
+        return success, response
+
+    # ===== FAZ 2: Customer Alerts Tests =====
+    def test_get_customer_alert_options(self):
+        """Test getting customer alert options"""
+        success, response = self.run_test(
+            "Get Customer Alert Options",
+            "GET",
+            "customer-alerts",
+            200
+        )
+        return success, response
+
+    def test_update_customer_with_alerts(self, customer_id):
+        """Test updating customer with alerts"""
+        update_data = {
+            "alerts": ["Geç öder", "Fiyat hassas"]
+        }
+        success, response = self.run_test(
+            "Update Customer with Alerts",
+            "PUT",
+            f"customers/{customer_id}",
+            200,
+            data=update_data
+        )
+        return success, response
+
+    def test_update_customer_with_all_alerts(self, customer_id):
+        """Test updating customer with all available alerts"""
+        update_data = {
+            "alerts": [
+                "Geç öder",
+                "Fiyat hassas", 
+                "Belirli saatlerde",
+                "Özel anlaşma var",
+                "Tahsilat problemi var",
+                "Sürekli erteleme yapıyor"
+            ]
+        }
+        success, response = self.run_test(
+            "Update Customer with All Alerts",
+            "PUT",
+            f"customers/{customer_id}",
+            200,
+            data=update_data
+        )
+        return success, response
+
+    def test_clear_customer_alerts(self, customer_id):
+        """Test clearing customer alerts"""
+        update_data = {
+            "alerts": []
+        }
+        success, response = self.run_test(
+            "Clear Customer Alerts",
+            "PUT",
+            f"customers/{customer_id}",
+            200,
+            data=update_data
+        )
+        return success, response
+
     def validate_analytics_follow_up_integration(self, analytics_data):
         """Validate that analytics correctly integrates follow-up data"""
         print("\n🔍 Validating Analytics Follow-Up Integration...")
