@@ -808,7 +808,7 @@ async def get_performance_analytics(period: str = "weekly", start_date: str = No
         date_cursor += timedelta(days=1)
     
     visit_rate = (total_completed / total_planned * 100) if total_planned > 0 else 0
-    payment_rate = (payment_count / total_completed * 100) if total_completed > 0 else 0
+    payment_rate = (payment_count / visit_completed_count * 100) if visit_completed_count > 0 else 0
     
     return {
         "period": period,
