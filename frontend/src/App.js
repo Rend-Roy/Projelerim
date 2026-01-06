@@ -6,6 +6,7 @@ import TodayPage from "@/pages/TodayPage";
 import CustomersPage from "@/pages/CustomersPage";
 import CustomerDetailPage from "@/pages/CustomerDetailPage";
 import CustomerFormPage from "@/pages/CustomerFormPage";
+import PerformancePage from "@/pages/PerformancePage";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <MobileLayout>
           <Routes>
             <Route path="/" element={<TodayPage />} />
+            <Route path="/performance" element={<PerformancePage />} />
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/customer/:id" element={<CustomerDetailPage />} />
             <Route path="/customer/new" element={<CustomerFormPage />} />
