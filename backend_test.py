@@ -419,6 +419,71 @@ def main():
     # Test PDF report generation
     tester.test_pdf_report()
 
+    # ===== NEW FOLLOW-UP TESTS =====
+    print("\n🔄 Testing Follow-Up Module...")
+    
+    # Test creating a follow-up
+    follow_up_success, follow_up_data = tester.test_create_follow_up(customer_id)
+    follow_up_id = None
+    if follow_up_success:
+        follow_up_id = follow_up_data.get('id')
+        print(f"📊 Created follow-up with ID: {follow_up_id}")
+        
+        # Validate follow-up response structure
+        required_fields = ['id', 'customer_id', 'due_date', 'status']
+        for field in required_fields:
+            if field not in follow_up_data:
+                print(f"❌ Missing required field '{field}' in follow-up response")
+            elif field == 'status' and follow_up_data[field] != 'pending':
+                print(f"❌ Expected status 'pending', got '{follow_up_data[field]}'")
+    
+    # Test getting follow-ups by date
+    date_follow_ups_success, date_follow_ups_data = tester.test_get_follow_ups_by_date()
+    if date_follow_ups_success:
+        print(f"📊 Found {len(date_follow_ups_data)} follow-ups for today")
+    
+    # Test getting today's follow-ups
+    today_follow_ups_success, today_follow_ups_data = tester.test_get_today_follow_ups()
+    if today_follow_ups_success:
+        print(f"📊 Found {len(today_follow_ups_data)} follow-ups for today (with customer info)")
+    
+    # Test completing a follow-up
+    if follow_up_id:
+        complete_success, complete_response = tester.test_complete_follow_up(follow_up_id)
+        if complete_success:
+            expected_message = "Takip tamamlandı"
+            if complete_response.get('message') == expected_message:
+                print(f"✅ Follow-up completion message correct: {expected_message}")
+            else:
+                print(f"❌ Expected message '{expected_message}', got '{complete_response.get('message')}'")
+
+    # ===== ANALYTICS INTEGRATION TESTS =====
+    print("\n📊 Testing Analytics Integration...")
+    
+    # Test weekly analytics
+    weekly_success, weekly_data = tester.test_analytics_performance_weekly()
+    if weekly_success:
+        print("📊 Weekly analytics data retrieved successfully")
+        
+        # Validate analytics structure and follow-up integration
+        if not tester.validate_analytics_follow_up_integration(weekly_data):
+            print("❌ Analytics follow-up integration validation failed")
+        
+        # Print key metrics for verification
+        visit_perf = weekly_data.get('visit_performance', {})
+        print(f"📊 Weekly Metrics - Planned: {visit_perf.get('total_planned', 0)}, "
+              f"Completed: {visit_perf.get('total_completed', 0)}, "
+              f"Rate: {visit_perf.get('visit_rate', 0)}%")
+    
+    # Test monthly analytics
+    monthly_success, monthly_data = tester.test_analytics_performance_monthly()
+    if monthly_success:
+        print("📊 Monthly analytics data retrieved successfully")
+        visit_perf = monthly_data.get('visit_performance', {})
+        print(f"📊 Monthly Metrics - Planned: {visit_perf.get('total_planned', 0)}, "
+              f"Completed: {visit_perf.get('total_completed', 0)}, "
+              f"Rate: {visit_perf.get('visit_rate', 0)}%")
+
     # Test deleting the customer (cleanup)
     tester.test_delete_customer(customer_id)
 
