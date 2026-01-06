@@ -122,6 +122,52 @@ export default function CustomerDetailPage() {
     fetchData();
   }, [id, date]);
 
+  // FAZ 2: Ziyaret süresi sayacı
+  useEffect(() => {
+    let interval;
+    if (visitStarted && !visitEnded) {
+      interval = setInterval(() => {
+        setElapsedTime(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [visitStarted, visitEnded]);
+
+  // FAZ 2: Ziyareti başlat
+  const handleStartVisit = async () => {
+    if (!visit) return;
+    try {
+      await axios.post(`${API}/visits/${visit.id}/start`);
+      setVisitStarted(true);
+      setElapsedTime(0);
+      toast.success("Ziyaret başlatıldı");
+    } catch (error) {
+      console.error("Error starting visit:", error);
+      toast.error(error.response?.data?.detail || "Ziyaret başlatılamadı");
+    }
+  };
+
+  // FAZ 2: Ziyareti bitir
+  const handleEndVisit = async () => {
+    if (!visit) return;
+    try {
+      const res = await axios.post(`${API}/visits/${visit.id}/end`);
+      setVisitEnded(true);
+      setVisitDuration(res.data.duration_minutes);
+      toast.success(`Ziyaret tamamlandı (${res.data.duration_minutes} dakika)`);
+    } catch (error) {
+      console.error("Error ending visit:", error);
+      toast.error(error.response?.data?.detail || "Ziyaret bitirilemedi");
+    }
+  };
+
+  // Geçen süreyi formatla (mm:ss)
+  const formatElapsedTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleSave = async () => {
     if (!visit) return;
 
