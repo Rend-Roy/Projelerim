@@ -328,9 +328,117 @@ async def delete_customer(customer_id: str):
     result = await db.customers.delete_one({"id": customer_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
-    # Delete related visits
+    # Delete related visits and follow-ups
     await db.visits.delete_many({"customer_id": customer_id})
+    await db.follow_ups.delete_many({"customer_id": customer_id})
     return {"message": "Müşteri silindi"}
+
+# Follow-Up endpoints
+@api_router.get("/follow-ups")
+async def get_follow_ups(date: Optional[str] = None, customer_id: Optional[str] = None, status: Optional[str] = None):
+    query = {}
+    if date:
+        query["due_date"] = date
+    if customer_id:
+        query["customer_id"] = customer_id
+    if status:
+        query["status"] = status
+    
+    follow_ups = await db.follow_ups.find(query, {"_id": 0}).to_list(1000)
+    
+    # Update late status for overdue follow-ups
+    today = datetime.now(timezone.utc).date().isoformat()
+    for fu in follow_ups:
+        if fu.get("status") == "pending" and fu.get("due_date") < today:
+            fu["status"] = "late"
+            await db.follow_ups.update_one({"id": fu["id"]}, {"$set": {"status": "late"}})
+    
+    return follow_ups
+
+@api_router.get("/follow-ups/today")
+async def get_today_follow_ups():
+    today = datetime.now(timezone.utc).date().isoformat()
+    
+    # Get today's and overdue follow-ups
+    follow_ups = await db.follow_ups.find({
+        "$or": [
+            {"due_date": today},
+            {"due_date": {"$lt": today}, "status": {"$ne": "done"}}
+        ]
+    }, {"_id": 0}).to_list(1000)
+    
+    # Update late status
+    for fu in follow_ups:
+        if fu.get("status") == "pending" and fu.get("due_date") < today:
+            fu["status"] = "late"
+            await db.follow_ups.update_one({"id": fu["id"]}, {"$set": {"status": "late"}})
+    
+    # Get customer info for each follow-up
+    result = []
+    for fu in follow_ups:
+        customer = await db.customers.find_one({"id": fu["customer_id"]}, {"_id": 0})
+        if customer:
+            fu["customer"] = {"name": customer["name"], "region": customer["region"]}
+        result.append(fu)
+    
+    return result
+
+@api_router.get("/follow-ups/{follow_up_id}")
+async def get_follow_up(follow_up_id: str):
+    fu = await db.follow_ups.find_one({"id": follow_up_id}, {"_id": 0})
+    if not fu:
+        raise HTTPException(status_code=404, detail="Takip bulunamadı")
+    return fu
+
+@api_router.post("/follow-ups", response_model=FollowUp)
+async def create_follow_up(input: FollowUpCreate):
+    # Verify customer exists
+    customer = await db.customers.find_one({"id": input.customer_id})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
+    
+    fu_obj = FollowUp(**input.model_dump())
+    doc = fu_obj.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.follow_ups.insert_one(doc)
+    return fu_obj
+
+@api_router.put("/follow-ups/{follow_up_id}")
+async def update_follow_up(follow_up_id: str, input: FollowUpUpdate):
+    fu = await db.follow_ups.find_one({"id": follow_up_id}, {"_id": 0})
+    if not fu:
+        raise HTTPException(status_code=404, detail="Takip bulunamadı")
+    
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    
+    # If marking as done, set completed_at
+    if update_data.get("status") == "done":
+        update_data["completed_at"] = datetime.now(timezone.utc).isoformat()
+    
+    if update_data:
+        await db.follow_ups.update_one({"id": follow_up_id}, {"$set": update_data})
+    
+    updated = await db.follow_ups.find_one({"id": follow_up_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/follow-ups/{follow_up_id}")
+async def delete_follow_up(follow_up_id: str):
+    result = await db.follow_ups.delete_one({"id": follow_up_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Takip bulunamadı")
+    return {"message": "Takip silindi"}
+
+@api_router.post("/follow-ups/{follow_up_id}/complete")
+async def complete_follow_up(follow_up_id: str):
+    fu = await db.follow_ups.find_one({"id": follow_up_id}, {"_id": 0})
+    if not fu:
+        raise HTTPException(status_code=404, detail="Takip bulunamadı")
+    
+    await db.follow_ups.update_one(
+        {"id": follow_up_id}, 
+        {"$set": {"status": "done", "completed_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"message": "Takip tamamlandı"}
 
 # Get customers for today based on visit_days
 @api_router.get("/customers/today/{day_name}")
