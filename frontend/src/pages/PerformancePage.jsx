@@ -13,7 +13,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   UserPlus,
-  Tag
+  Tag,
+  Clock,
+  Star,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
