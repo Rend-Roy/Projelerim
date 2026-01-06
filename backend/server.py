@@ -36,6 +36,7 @@ class Customer(BaseModel):
     region: str
     phone: Optional[str] = None
     address: Optional[str] = None
+    price_status: str = "Standart"  # İskontolu veya Standart
     visit_days: List[str] = []  # Pazartesi, Salı, Çarşamba, Perşembe, Cuma, Cumartesi, Pazar
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -44,6 +45,7 @@ class CustomerCreate(BaseModel):
     region: str
     phone: Optional[str] = None
     address: Optional[str] = None
+    price_status: str = "Standart"
     visit_days: List[str] = []
 
 class CustomerUpdate(BaseModel):
@@ -51,6 +53,7 @@ class CustomerUpdate(BaseModel):
     region: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    price_status: Optional[str] = None
     visit_days: Optional[List[str]] = None
 
 class Visit(BaseModel):
