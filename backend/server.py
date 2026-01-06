@@ -212,7 +212,15 @@ async def update_visit(visit_id: str, input: VisitUpdate):
     if not visit:
         raise HTTPException(status_code=404, detail="Ziyaret bulunamadı")
     
-    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    update_data = {}
+    for k, v in input.model_dump().items():
+        if v is not None:
+            update_data[k] = v
+        elif k in ['visit_skip_reason', 'payment_skip_reason', 'payment_type', 'payment_amount', 'customer_request', 'note']:
+            # Allow clearing these fields
+            if input.model_dump(exclude_unset=True).get(k) is not None or k in input.model_dump(exclude_unset=True):
+                update_data[k] = v
+    
     if 'completed' in update_data and update_data['completed']:
         update_data['completed_at'] = datetime.now(timezone.utc).isoformat()
     
@@ -225,6 +233,26 @@ async def update_visit(visit_id: str, input: VisitUpdate):
     if isinstance(updated.get('completed_at'), str):
         updated['completed_at'] = datetime.fromisoformat(updated['completed_at'])
     return updated
+
+# Daily Report Note endpoints
+@api_router.get("/daily-note/{date}")
+async def get_daily_note(date: str):
+    note = await db.daily_notes.find_one({"date": date}, {"_id": 0})
+    if not note:
+        return {"date": date, "note": ""}
+    return note
+
+@api_router.post("/daily-note/{date}")
+async def save_daily_note(date: str, input: DailyReportNoteUpdate):
+    existing = await db.daily_notes.find_one({"date": date})
+    if existing:
+        await db.daily_notes.update_one({"date": date}, {"$set": {"note": input.note}})
+    else:
+        note_obj = DailyReportNote(date=date, note=input.note)
+        doc = note_obj.model_dump()
+        doc['created_at'] = doc['created_at'].isoformat()
+        await db.daily_notes.insert_one(doc)
+    return {"message": "Not kaydedildi", "date": date}
 
 # Seed sample data
 @api_router.post("/seed")
