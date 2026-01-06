@@ -39,7 +39,18 @@ class Customer(BaseModel):
     address: Optional[str] = None
     price_status: str = "Standart"  # İskontolu veya Standart
     visit_days: List[str] = []  # Pazartesi, Salı, Çarşamba, Perşembe, Cuma, Cumartesi, Pazar
+    alerts: List[str] = []  # Müşteri uyarıları (Kırmızı Bayrak)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Müşteri uyarı seçenekleri
+CUSTOMER_ALERTS = [
+    "Geç öder",
+    "Fiyat hassas",
+    "Belirli saatlerde",
+    "Özel anlaşma var",
+    "Tahsilat problemi var",
+    "Sürekli erteleme yapıyor"
+]
 
 class CustomerCreate(BaseModel):
     name: str
@@ -48,6 +59,7 @@ class CustomerCreate(BaseModel):
     address: Optional[str] = None
     price_status: str = "Standart"
     visit_days: List[str] = []
+    alerts: List[str] = []
 
 class CustomerUpdate(BaseModel):
     name: Optional[str] = None
@@ -56,6 +68,7 @@ class CustomerUpdate(BaseModel):
     address: Optional[str] = None
     price_status: Optional[str] = None
     visit_days: Optional[List[str]] = None
+    alerts: Optional[List[str]] = None
 
 # Region models
 class Region(BaseModel):
@@ -89,6 +102,11 @@ class Visit(BaseModel):
     customer_request: Optional[str] = None  # Müşteri özel talep/notu
     note: Optional[str] = None  # Genel not
     completed_at: Optional[datetime] = None
+    # FAZ 2: Ziyaret Süresi ve Kalite
+    started_at: Optional[datetime] = None  # Ziyaret başlangıç zamanı
+    ended_at: Optional[datetime] = None  # Ziyaret bitiş zamanı
+    duration_minutes: Optional[int] = None  # Ziyaret süresi (dakika)
+    quality_rating: Optional[int] = None  # Ziyaret kalitesi (1-5 yıldız)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class VisitUpdate(BaseModel):
@@ -100,6 +118,7 @@ class VisitUpdate(BaseModel):
     payment_amount: Optional[float] = None
     customer_request: Optional[str] = None
     note: Optional[str] = None
+    quality_rating: Optional[int] = None  # 1-5 yıldız
 
 # Follow-Up model
 class FollowUp(BaseModel):
