@@ -425,6 +425,56 @@ export default function CustomerFormPage() {
           </div>
         </div>
 
+        {/* FAZ 2: Müşteri Uyarıları */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-500" />
+            Müşteri Uyarıları (Kırmızı Bayrak)
+          </label>
+          <div className="grid grid-cols-1 gap-2">
+            {CUSTOMER_ALERTS.map((alert) => {
+              const isSelected = formData.alerts.includes(alert);
+              return (
+                <div
+                  key={alert}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleAlert(alert);
+                  }}
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${
+                    isSelected
+                      ? "bg-red-50 border-red-200"
+                      : "bg-white border-slate-200 hover:border-slate-300"
+                  }`}
+                  data-testid={`alert-${alert}`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                      isSelected
+                        ? "bg-red-600 border-red-600"
+                        : "border-slate-300 bg-white"
+                    }`}
+                  >
+                    {isSelected && (
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <span
+                    className={`text-sm font-medium ${
+                      isSelected ? "text-red-700" : "text-slate-600"
+                    }`}
+                  >
+                    {alert}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Submit Button */}
         <div className="pt-4">
           <Button
