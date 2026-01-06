@@ -493,6 +493,113 @@ class TurkishCustomerVisitAPITester:
         print("✅ Analytics follow-up integration validation passed")
         return True
 
+    def validate_visit_duration_response(self, response, action):
+        """Validate visit duration API responses"""
+        print(f"\n🔍 Validating {action} visit response...")
+        
+        if action == "start":
+            required_fields = ['message', 'started_at']
+            expected_message = "Ziyaret başlatıldı"
+        elif action == "end":
+            required_fields = ['message', 'ended_at', 'duration_minutes']
+            expected_message = "Ziyaret tamamlandı"
+        else:
+            return False
+        
+        # Check required fields
+        for field in required_fields:
+            if field not in response:
+                print(f"❌ Missing field '{field}' in {action} response")
+                return False
+        
+        # Check message
+        if response.get('message') != expected_message:
+            print(f"❌ Expected message '{expected_message}', got '{response.get('message')}'")
+            return False
+        
+        # For end visit, validate duration is a positive integer
+        if action == "end":
+            duration = response.get('duration_minutes')
+            if not isinstance(duration, int) or duration < 0:
+                print(f"❌ Invalid duration_minutes: {duration}")
+                return False
+        
+        print(f"✅ {action.capitalize()} visit response validation passed")
+        return True
+
+    def validate_customer_alerts_response(self, response):
+        """Validate customer alerts API response"""
+        print("\n🔍 Validating customer alerts response...")
+        
+        if 'alerts' not in response:
+            print("❌ Missing 'alerts' field in response")
+            return False
+        
+        alerts = response.get('alerts', [])
+        expected_alerts = [
+            "Geç öder",
+            "Fiyat hassas",
+            "Belirli saatlerde",
+            "Özel anlaşma var",
+            "Tahsilat problemi var",
+            "Sürekli erteleme yapıyor"
+        ]
+        
+        if len(alerts) != 6:
+            print(f"❌ Expected 6 alerts, got {len(alerts)}")
+            return False
+        
+        for expected_alert in expected_alerts:
+            if expected_alert not in alerts:
+                print(f"❌ Missing expected alert: {expected_alert}")
+                return False
+        
+        print("✅ Customer alerts response validation passed")
+        return True
+
+    def validate_analytics_visit_quality(self, analytics_data):
+        """Validate visit_quality object in analytics response"""
+        print("\n🔍 Validating analytics visit_quality metrics...")
+        
+        visit_quality = analytics_data.get('visit_quality')
+        if not visit_quality:
+            print("❌ Missing 'visit_quality' object in analytics response")
+            return False
+        
+        # Check duration object
+        duration = visit_quality.get('duration')
+        if not duration:
+            print("❌ Missing 'duration' object in visit_quality")
+            return False
+        
+        duration_fields = ['average_minutes', 'total_measured', 'short_visits', 'long_visits']
+        for field in duration_fields:
+            if field not in duration:
+                print(f"❌ Missing field '{field}' in duration object")
+                return False
+        
+        # Check rating object
+        rating = visit_quality.get('rating')
+        if not rating:
+            print("❌ Missing 'rating' object in visit_quality")
+            return False
+        
+        rating_fields = ['average_rating', 'total_rated', 'distribution', 'quality_payment_relation']
+        for field in rating_fields:
+            if field not in rating:
+                print(f"❌ Missing field '{field}' in rating object")
+                return False
+        
+        # Validate distribution has all rating levels
+        distribution = rating.get('distribution', {})
+        for i in range(1, 6):
+            if str(i) not in distribution and i not in distribution:
+                print(f"❌ Missing rating level {i} in distribution")
+                return False
+        
+        print("✅ Analytics visit_quality validation passed")
+        return True
+
 def main():
     print("🚀 Starting Turkish Customer Visit Tracking API Tests")
     print("=" * 60)
