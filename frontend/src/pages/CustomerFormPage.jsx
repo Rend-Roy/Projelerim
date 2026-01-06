@@ -60,6 +60,7 @@ export default function CustomerFormPage() {
     address: "",
     price_status: "Standart",
     visit_days: [],
+    alerts: [],  // FAZ 2: Müşteri uyarıları
   });
   const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(false);
