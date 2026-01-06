@@ -1,13 +1,44 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { ArrowLeft, MapPin, Phone, CheckCircle, Save } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, MapPin, Phone, CheckCircle, XCircle, Save, Banknote } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const VISIT_SKIP_REASONS = [
+  "Müşteri yerinde değildi",
+  "İşyeri kapalıydı",
+  "Müşteri görüşmek istemedi",
+  "Ulaşım sorunu",
+  "Zaman yetersizliği",
+  "Diğer"
+];
+
+const PAYMENT_SKIP_REASONS = [
+  "Müşterinin ödeme gücü yok",
+  "Vade henüz dolmadı",
+  "Müşteri erteleme istedi",
+  "Ödeme bilgisi yok",
+  "Diğer"
+];
+
+const PAYMENT_TYPES = [
+  "Nakit",
+  "Kredi Kartı",
+  "Havale/EFT",
+  "Çek"
+];
 
 export default function CustomerDetailPage() {
   const { id } = useParams();
@@ -16,8 +47,17 @@ export default function CustomerDetailPage() {
 
   const [customer, setCustomer] = useState(null);
   const [visit, setVisit] = useState(null);
+  
+  // Form states
   const [completed, setCompleted] = useState(false);
+  const [visitSkipReason, setVisitSkipReason] = useState("");
+  const [paymentCollected, setPaymentCollected] = useState(false);
+  const [paymentSkipReason, setPaymentSkipReason] = useState("");
+  const [paymentType, setPaymentType] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [customerRequest, setCustomerRequest] = useState("");
   const [note, setNote] = useState("");
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -26,14 +66,20 @@ export default function CustomerDetailPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Get customer
       const customerRes = await axios.get(`${API}/customers/${id}`);
       setCustomer(customerRes.data);
 
-      // Get or create visit for this date
       const visitRes = await axios.post(`${API}/visits?customer_id=${id}&date=${date}`);
       setVisit(visitRes.data);
+      
+      // Set form values from visit data
       setCompleted(visitRes.data.completed || false);
+      setVisitSkipReason(visitRes.data.visit_skip_reason || "");
+      setPaymentCollected(visitRes.data.payment_collected || false);
+      setPaymentSkipReason(visitRes.data.payment_skip_reason || "");
+      setPaymentType(visitRes.data.payment_type || "");
+      setPaymentAmount(visitRes.data.payment_amount ? String(visitRes.data.payment_amount) : "");
+      setCustomerRequest(visitRes.data.customer_request || "");
       setNote(visitRes.data.note || "");
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -54,7 +100,13 @@ export default function CustomerDetailPage() {
     try {
       await axios.put(`${API}/visits/${visit.id}`, {
         completed,
-        note,
+        visit_skip_reason: !completed ? visitSkipReason : null,
+        payment_collected: paymentCollected,
+        payment_skip_reason: !paymentCollected ? paymentSkipReason : null,
+        payment_type: paymentCollected ? paymentType : null,
+        payment_amount: paymentCollected && paymentAmount ? parseFloat(paymentAmount) : null,
+        customer_request: customerRequest || null,
+        note: note || null,
       });
       toast.success("Ziyaret kaydedildi");
       navigate(-1);
@@ -87,12 +139,12 @@ export default function CustomerDetailPage() {
   }
 
   return (
-    <div className="p-4 pt-6" data-testid="customer-detail-page">
+    <div className="p-4 pt-6 pb-24" data-testid="customer-detail-page">
       {/* Header */}
-      <header className="mb-6">
+      <header className="mb-5">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors mb-4"
+          className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors mb-3"
           data-testid="back-button"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -120,50 +172,171 @@ export default function CustomerDetailPage() {
         </div>
       </header>
 
-      {/* Visit Status Card */}
-      <div className="bg-white rounded-xl p-5 border border-slate-100 shadow-sm mb-4">
-        <h2 className="text-lg font-semibold text-slate-800 mb-4">
+      {/* Ziyaret Durumu */}
+      <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-3">
+        <h2 className="text-base font-semibold text-slate-800 mb-3">
           Ziyaret Durumu
         </h2>
-
-        <div
-          className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 cursor-pointer"
-          onClick={() => setCompleted(!completed)}
-          data-testid="visit-status-toggle"
-        >
-          <Checkbox
-            checked={completed}
-            onCheckedChange={setCompleted}
-            className="w-6 h-6 rounded-lg border-2"
-            data-testid="completed-checkbox"
-          />
-          <div className="flex-1">
-            <span className="font-medium text-slate-700">Ziyaret Edildi</span>
-            <p className="text-sm text-slate-500">
-              Müşteriyi ziyaret ettiyseniz işaretleyin
-            </p>
+        
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div
+            onClick={() => setCompleted(true)}
+            className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
+              completed
+                ? "bg-green-50 border-green-200"
+                : "bg-white border-slate-200"
+            }`}
+            data-testid="visit-yes"
+          >
+            <CheckCircle className={`w-5 h-5 ${completed ? "text-green-600" : "text-slate-300"}`} />
+            <span className={`text-sm font-medium ${completed ? "text-green-700" : "text-slate-600"}`}>
+              Ziyaret Edildi
+            </span>
           </div>
-          {completed && (
-            <CheckCircle className="w-6 h-6 text-green-500" />
-          )}
+          <div
+            onClick={() => setCompleted(false)}
+            className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
+              !completed
+                ? "bg-red-50 border-red-200"
+                : "bg-white border-slate-200"
+            }`}
+            data-testid="visit-no"
+          >
+            <XCircle className={`w-5 h-5 ${!completed ? "text-red-600" : "text-slate-300"}`} />
+            <span className={`text-sm font-medium ${!completed ? "text-red-700" : "text-slate-600"}`}>
+              Ziyaret Edilmedi
+            </span>
+          </div>
         </div>
+
+        {!completed && (
+          <div className="mt-3">
+            <label className="block text-sm text-slate-600 mb-1.5">Ziyaret Edilmeme Sebebi</label>
+            <Select value={visitSkipReason} onValueChange={setVisitSkipReason}>
+              <SelectTrigger className="h-11 bg-slate-50 border-slate-200 rounded-lg" data-testid="visit-skip-reason">
+                <SelectValue placeholder="Sebep seçin..." />
+              </SelectTrigger>
+              <SelectContent>
+                {VISIT_SKIP_REASONS.map((reason) => (
+                  <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
-      {/* Note Card */}
-      <div className="bg-white rounded-xl p-5 border border-slate-100 shadow-sm mb-6">
-        <h2 className="text-lg font-semibold text-slate-800 mb-4">
+      {/* Tahsilat Durumu */}
+      <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-3">
+        <h2 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
+          <Banknote className="w-5 h-5 text-slate-600" />
+          Tahsilat Durumu
+        </h2>
+        
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div
+            onClick={() => setPaymentCollected(true)}
+            className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
+              paymentCollected
+                ? "bg-green-50 border-green-200"
+                : "bg-white border-slate-200"
+            }`}
+            data-testid="payment-yes"
+          >
+            <CheckCircle className={`w-5 h-5 ${paymentCollected ? "text-green-600" : "text-slate-300"}`} />
+            <span className={`text-sm font-medium ${paymentCollected ? "text-green-700" : "text-slate-600"}`}>
+              Tahsilat Yapıldı
+            </span>
+          </div>
+          <div
+            onClick={() => setPaymentCollected(false)}
+            className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
+              !paymentCollected
+                ? "bg-orange-50 border-orange-200"
+                : "bg-white border-slate-200"
+            }`}
+            data-testid="payment-no"
+          >
+            <XCircle className={`w-5 h-5 ${!paymentCollected ? "text-orange-600" : "text-slate-300"}`} />
+            <span className={`text-sm font-medium ${!paymentCollected ? "text-orange-700" : "text-slate-600"}`}>
+              Tahsilat Yapılmadı
+            </span>
+          </div>
+        </div>
+
+        {paymentCollected ? (
+          <div className="space-y-3 mt-3">
+            <div>
+              <label className="block text-sm text-slate-600 mb-1.5">Ödeme Türü</label>
+              <Select value={paymentType} onValueChange={setPaymentType}>
+                <SelectTrigger className="h-11 bg-slate-50 border-slate-200 rounded-lg" data-testid="payment-type">
+                  <SelectValue placeholder="Tür seçin..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm text-slate-600 mb-1.5">Tahsilat Tutarı (TL)</label>
+              <Input
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                placeholder="0.00"
+                className="h-11 bg-slate-50 border-slate-200 rounded-lg"
+                data-testid="payment-amount"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3">
+            <label className="block text-sm text-slate-600 mb-1.5">Tahsilat Yapılmama Sebebi</label>
+            <Select value={paymentSkipReason} onValueChange={setPaymentSkipReason}>
+              <SelectTrigger className="h-11 bg-slate-50 border-slate-200 rounded-lg" data-testid="payment-skip-reason">
+                <SelectValue placeholder="Sebep seçin..." />
+              </SelectTrigger>
+              <SelectContent>
+                {PAYMENT_SKIP_REASONS.map((reason) => (
+                  <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+
+      {/* Müşteri Talebi */}
+      <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-3">
+        <h2 className="text-base font-semibold text-slate-800 mb-3">
+          Müşteri Talebi / Özel Not
+        </h2>
+        <Textarea
+          placeholder="Müşterinin özel talep veya istekleri..."
+          value={customerRequest}
+          onChange={(e) => setCustomerRequest(e.target.value)}
+          className="min-h-[80px] bg-slate-50 border-slate-200 rounded-lg resize-none"
+          data-testid="customer-request"
+        />
+      </div>
+
+      {/* Genel Not */}
+      <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-4">
+        <h2 className="text-base font-semibold text-slate-800 mb-3">
           Ziyaret Notu
         </h2>
         <Textarea
-          placeholder="Ziyaret hakkında not ekleyin..."
+          placeholder="Ziyaret hakkında genel notlar..."
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="min-h-[120px] bg-slate-50 border-slate-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl resize-none"
+          className="min-h-[80px] bg-slate-50 border-slate-200 rounded-lg resize-none"
           data-testid="note-textarea"
         />
       </div>
 
-      {/* Save Button */}
+      {/* Kaydet Butonu */}
       <Button
         onClick={handleSave}
         disabled={saving}
