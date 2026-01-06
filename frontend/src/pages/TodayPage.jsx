@@ -25,6 +25,7 @@ export default function TodayPage() {
   const [customers, setCustomers] = useState([]);
   const [visits, setVisits] = useState({});
   const [loading, setLoading] = useState(true);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const today = new Date();
   const englishDayName = format(today, "EEEE");
