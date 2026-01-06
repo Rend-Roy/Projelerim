@@ -421,6 +421,195 @@ async def upload_customers_excel(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Dosya işlenirken hata: {str(e)}")
 
+# Analytics endpoints
+@api_router.get("/analytics/performance")
+async def get_performance_analytics(period: str = "weekly", start_date: str = None, end_date: str = None):
+    """
+    Get performance analytics for a given period.
+    period: 'weekly' or 'monthly'
+    """
+    from datetime import timedelta
+    
+    today = datetime.now(timezone.utc).date()
+    
+    if period == "weekly":
+        # Current week (Monday to Sunday)
+        days_since_monday = today.weekday()
+        week_start = today - timedelta(days=days_since_monday)
+        week_end = week_start + timedelta(days=6)
+        start = week_start.isoformat()
+        end = week_end.isoformat()
+    else:  # monthly
+        # Current month
+        start = today.replace(day=1).isoformat()
+        # Last day of month
+        if today.month == 12:
+            next_month = today.replace(year=today.year + 1, month=1, day=1)
+        else:
+            next_month = today.replace(month=today.month + 1, day=1)
+        end = (next_month - timedelta(days=1)).isoformat()
+    
+    # Override with custom dates if provided
+    if start_date:
+        start = start_date
+    if end_date:
+        end = end_date
+    
+    # Get all customers
+    all_customers = await db.customers.find({}, {"_id": 0}).to_list(1000)
+    
+    # Get visits in date range
+    visits = await db.visits.find({
+        "date": {"$gte": start, "$lte": end}
+    }, {"_id": 0}).to_list(10000)
+    
+    # Calculate metrics
+    total_planned = 0
+    total_completed = 0
+    total_payment = 0
+    payment_count = 0
+    payment_skip_reasons = {}
+    visit_skip_reasons = {}
+    
+    # Count planned visits per day
+    date_cursor = datetime.fromisoformat(start)
+    end_dt = datetime.fromisoformat(end)
+    
+    while date_cursor.date() <= end_dt.date():
+        day_name_en = date_cursor.strftime("%A")
+        day_name_tr_map = {
+            "Monday": "Pazartesi", "Tuesday": "Salı", "Wednesday": "Çarşamba",
+            "Thursday": "Perşembe", "Friday": "Cuma", "Saturday": "Cumartesi", "Sunday": "Pazar"
+        }
+        day_name_tr = day_name_tr_map.get(day_name_en, "")
+        
+        for customer in all_customers:
+            if day_name_tr in customer.get("visit_days", []):
+                total_planned += 1
+        
+        date_cursor += timedelta(days=1)
+    
+    # Process visits
+    visits_by_customer = {}
+    for v in visits:
+        cid = v.get("customer_id")
+        if cid not in visits_by_customer:
+            visits_by_customer[cid] = []
+        visits_by_customer[cid].append(v)
+        
+        if v.get("completed"):
+            total_completed += 1
+        elif v.get("visit_skip_reason"):
+            reason = v.get("visit_skip_reason", "Belirtilmemiş")
+            visit_skip_reasons[reason] = visit_skip_reasons.get(reason, 0) + 1
+        
+        if v.get("payment_collected"):
+            payment_count += 1
+            total_payment += v.get("payment_amount", 0) or 0
+        elif v.get("payment_skip_reason"):
+            reason = v.get("payment_skip_reason", "Belirtilmemiş")
+            payment_skip_reasons[reason] = payment_skip_reasons.get(reason, 0) + 1
+    
+    # New customers in period
+    new_customers = []
+    for c in all_customers:
+        created = c.get("created_at", "")
+        if isinstance(created, str):
+            created_date = created[:10]
+            if start <= created_date <= end:
+                new_customers.append(c)
+    
+    # Price status analysis
+    iskontolu_customers = [c for c in all_customers if c.get("price_status") == "İskontolu"]
+    standart_customers = [c for c in all_customers if c.get("price_status") != "İskontolu"]
+    
+    # Visits and payments by price status
+    iskontolu_visits = 0
+    iskontolu_completed = 0
+    iskontolu_payment = 0
+    standart_visits = 0
+    standart_completed = 0
+    standart_payment = 0
+    
+    customer_map = {c["id"]: c for c in all_customers}
+    for v in visits:
+        cid = v.get("customer_id")
+        customer = customer_map.get(cid, {})
+        is_iskontolu = customer.get("price_status") == "İskontolu"
+        
+        if is_iskontolu:
+            iskontolu_visits += 1
+            if v.get("completed"):
+                iskontolu_completed += 1
+            if v.get("payment_collected"):
+                iskontolu_payment += v.get("payment_amount", 0) or 0
+        else:
+            standart_visits += 1
+            if v.get("completed"):
+                standart_completed += 1
+            if v.get("payment_collected"):
+                standart_payment += v.get("payment_amount", 0) or 0
+    
+    # Daily breakdown for charts
+    daily_data = []
+    date_cursor = datetime.fromisoformat(start)
+    while date_cursor.date() <= end_dt.date():
+        date_str = date_cursor.date().isoformat()
+        day_visits = [v for v in visits if v.get("date") == date_str]
+        completed = sum(1 for v in day_visits if v.get("completed"))
+        payment = sum((v.get("payment_amount", 0) or 0) for v in day_visits if v.get("payment_collected"))
+        
+        daily_data.append({
+            "date": date_str,
+            "day": date_cursor.strftime("%a"),
+            "planned": len(day_visits),
+            "completed": completed,
+            "payment": payment
+        })
+        date_cursor += timedelta(days=1)
+    
+    visit_rate = (total_completed / total_planned * 100) if total_planned > 0 else 0
+    payment_rate = (payment_count / total_completed * 100) if total_completed > 0 else 0
+    
+    return {
+        "period": period,
+        "start_date": start,
+        "end_date": end,
+        "visit_performance": {
+            "total_planned": total_planned,
+            "total_completed": total_completed,
+            "visit_rate": round(visit_rate, 1),
+            "skip_reasons": visit_skip_reasons
+        },
+        "payment_performance": {
+            "total_amount": total_payment,
+            "customer_count": payment_count,
+            "payment_rate": round(payment_rate, 1),
+            "skip_reasons": payment_skip_reasons
+        },
+        "customer_acquisition": {
+            "new_count": len(new_customers),
+            "new_customers": [{"name": c["name"], "region": c["region"], "price_status": c.get("price_status", "Standart")} for c in new_customers]
+        },
+        "price_analysis": {
+            "iskontolu": {
+                "customer_count": len(iskontolu_customers),
+                "visit_count": iskontolu_visits,
+                "completed_count": iskontolu_completed,
+                "visit_rate": round((iskontolu_completed / iskontolu_visits * 100) if iskontolu_visits > 0 else 0, 1),
+                "total_payment": iskontolu_payment
+            },
+            "standart": {
+                "customer_count": len(standart_customers),
+                "visit_count": standart_visits,
+                "completed_count": standart_completed,
+                "visit_rate": round((standart_completed / standart_visits * 100) if standart_visits > 0 else 0, 1),
+                "total_payment": standart_payment
+            }
+        },
+        "daily_breakdown": daily_data
+    }
+
 # Seed sample data
 @api_router.post("/seed")
 async def seed_data():
