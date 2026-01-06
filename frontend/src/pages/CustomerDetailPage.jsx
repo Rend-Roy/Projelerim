@@ -64,6 +64,16 @@ export default function CustomerDetailPage() {
   const [customerRequest, setCustomerRequest] = useState("");
   const [note, setNote] = useState("");
   
+  // Follow-up states
+  const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
+  const [followUpData, setFollowUpData] = useState({
+    due_date: "",
+    due_time: "",
+    reason: "",
+    note: ""
+  });
+  const [savingFollowUp, setSavingFollowUp] = useState(false);
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
