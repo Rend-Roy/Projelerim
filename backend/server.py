@@ -529,7 +529,7 @@ async def update_visit(visit_id: str, input: VisitUpdate):
     for k, v in input.model_dump().items():
         if v is not None:
             update_data[k] = v
-        elif k in ['visit_skip_reason', 'payment_skip_reason', 'payment_type', 'payment_amount', 'customer_request', 'note']:
+        elif k in ['visit_skip_reason', 'payment_skip_reason', 'payment_type', 'payment_amount', 'customer_request', 'note', 'quality_rating']:
             # Allow clearing these fields
             if input.model_dump(exclude_unset=True).get(k) is not None or k in input.model_dump(exclude_unset=True):
                 update_data[k] = v
@@ -545,7 +545,71 @@ async def update_visit(visit_id: str, input: VisitUpdate):
         updated['created_at'] = datetime.fromisoformat(updated['created_at'])
     if isinstance(updated.get('completed_at'), str):
         updated['completed_at'] = datetime.fromisoformat(updated['completed_at'])
+    if isinstance(updated.get('started_at'), str):
+        updated['started_at'] = datetime.fromisoformat(updated['started_at'])
+    if isinstance(updated.get('ended_at'), str):
+        updated['ended_at'] = datetime.fromisoformat(updated['ended_at'])
     return updated
+
+# FAZ 2: Ziyaret Süresi Takibi Endpoint'leri
+@api_router.post("/visits/{visit_id}/start")
+async def start_visit(visit_id: str):
+    """Ziyareti başlat - started_at zamanını kaydet"""
+    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        raise HTTPException(status_code=404, detail="Ziyaret bulunamadı")
+    
+    if visit.get("started_at"):
+        raise HTTPException(status_code=400, detail="Ziyaret zaten başlatılmış")
+    
+    now = datetime.now(timezone.utc)
+    await db.visits.update_one(
+        {"id": visit_id}, 
+        {"$set": {"started_at": now.isoformat()}}
+    )
+    
+    return {"message": "Ziyaret başlatıldı", "started_at": now.isoformat()}
+
+@api_router.post("/visits/{visit_id}/end")
+async def end_visit(visit_id: str):
+    """Ziyareti bitir - ended_at zamanını kaydet ve süreyi hesapla"""
+    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        raise HTTPException(status_code=404, detail="Ziyaret bulunamadı")
+    
+    if not visit.get("started_at"):
+        raise HTTPException(status_code=400, detail="Ziyaret henüz başlatılmamış")
+    
+    if visit.get("ended_at"):
+        raise HTTPException(status_code=400, detail="Ziyaret zaten bitirilmiş")
+    
+    now = datetime.now(timezone.utc)
+    started_at = visit.get("started_at")
+    if isinstance(started_at, str):
+        started_at = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+    
+    # Süreyi dakika olarak hesapla
+    duration = int((now - started_at).total_seconds() / 60)
+    
+    await db.visits.update_one(
+        {"id": visit_id}, 
+        {"$set": {
+            "ended_at": now.isoformat(),
+            "duration_minutes": duration
+        }}
+    )
+    
+    return {
+        "message": "Ziyaret tamamlandı", 
+        "ended_at": now.isoformat(),
+        "duration_minutes": duration
+    }
+
+# Müşteri uyarı seçenekleri endpoint'i
+@api_router.get("/customer-alerts")
+async def get_customer_alert_options():
+    """Müşteri uyarı seçeneklerini döndür"""
+    return {"alerts": CUSTOMER_ALERTS}
 
 # Daily Report Note endpoints
 @api_router.get("/daily-note/{date}")
