@@ -1,6 +1,7 @@
 import requests
 import sys
 from datetime import datetime
+import time
 
 class TurkishCustomerVisitAPITester:
     def __init__(self, base_url="https://satistrip.preview.emergentagent.com/api"):
@@ -8,6 +9,9 @@ class TurkishCustomerVisitAPITester:
         self.tests_run = 0
         self.tests_passed = 0
         self.test_results = []
+        self.auth_token = None  # FAZ 3.0: Store authentication token
+        self.test_user_email = "test@example.com"
+        self.test_user_password = "test123"
 
     def run_test(self, name, method, endpoint, expected_status, data=None, params=None):
         """Run a single API test"""
