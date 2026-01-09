@@ -5,16 +5,19 @@ const AuthContext = createContext(null);
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// Session bazlı storage - tarayıcı kapandığında oturum sıfırlanır
+const storage = sessionStorage;
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [token, setToken] = useState(storage.getItem("token"));
   const [loading, setLoading] = useState(true);
 
   // Axios interceptor for adding token to requests
   useEffect(() => {
     const interceptor = axios.interceptors.request.use(
       (config) => {
-        const savedToken = localStorage.getItem("token");
+        const savedToken = storage.getItem("token");
         if (savedToken) {
           config.headers.Authorization = `Bearer ${savedToken}`;
         }
@@ -29,7 +32,7 @@ export function AuthProvider({ children }) {
   // Check token on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const savedToken = localStorage.getItem("token");
+      const savedToken = storage.getItem("token");
       if (savedToken) {
         try {
           const res = await axios.get(`${API}/auth/me`, {
@@ -39,7 +42,7 @@ export function AuthProvider({ children }) {
           setToken(savedToken);
         } catch (error) {
           // Token geçersiz, temizle
-          localStorage.removeItem("token");
+          storage.removeItem("token");
           setToken(null);
           setUser(null);
         }
@@ -59,7 +62,7 @@ export function AuthProvider({ children }) {
     
     const { token: newToken, user: userData } = res.data;
     
-    localStorage.setItem("token", newToken);
+    storage.setItem("token", newToken);
     setToken(newToken);
     setUser(userData);
     
@@ -75,7 +78,7 @@ export function AuthProvider({ children }) {
     
     const { token: newToken, user: userData } = res.data;
     
-    localStorage.setItem("token", newToken);
+    storage.setItem("token", newToken);
     setToken(newToken);
     setUser(userData);
     
@@ -83,7 +86,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
+    storage.removeItem("token");
     setToken(null);
     setUser(null);
   };
