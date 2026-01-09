@@ -212,6 +212,7 @@ class Visit(BaseModel):
     ended_at: Optional[datetime] = None  # Ziyaret bitiş zamanı
     duration_minutes: Optional[int] = None  # Ziyaret süresi (dakika)
     quality_rating: Optional[int] = None  # Ziyaret kalitesi (1-5 yıldız)
+    user_id: Optional[str] = None  # FAZ 3.0: Kullanıcıya ait (opsiyonel)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class VisitUpdate(BaseModel):
