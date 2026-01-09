@@ -1646,8 +1646,13 @@ async def generate_daily_report_pdf(
     pdf.ln(15)
     pdf.set_font("DejaVu", "", 8)
     pdf.set_text_color(148, 163, 184)
-    pdf.cell(0, 5, f"Rapor oluşturma tarihi: {datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M')} UTC", ln=True, align="C")
-    pdf.cell(0, 5, "Bu rapor otomatik olarak oluşturulmuştur.", ln=True, align="C")
+    
+    # FAZ 3.1: Detaylı rapor bilgisi
+    report_date = datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M')
+    pdf.cell(0, 5, f"Rapor Tarihi: {report_date} UTC", ln=True, align="C")
+    if user_email:
+        pdf.cell(0, 5, f"Raporu Oluşturan: {user_email}", ln=True, align="C")
+    pdf.cell(0, 5, "Bu rapor Satış Takip Sistemi tarafından otomatik oluşturulmuştur.", ln=True, align="C")
     
     # Output PDF
     pdf_output = io.BytesIO()
