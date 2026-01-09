@@ -1359,8 +1359,16 @@ async def seed_data():
 
 # PDF Report endpoint
 @api_router.get("/report/pdf/{day_name}/{date}")
-async def generate_daily_report_pdf(day_name: str, date: str):
+async def generate_daily_report_pdf(
+    day_name: str, 
+    date: str,
+    current_user: dict = Depends(get_current_user)
+):
     """Generate comprehensive daily visit report as PDF"""
+    
+    # Kullanıcı bilgisi al (opsiyonel - geriye uyumluluk için)
+    user_name = current_user.get("name", "Satış Temsilcisi") if current_user else "Satış Temsilcisi"
+    user_email = current_user.get("email", "") if current_user else ""
     
     # Get customers for this day
     customers = await db.customers.find(
