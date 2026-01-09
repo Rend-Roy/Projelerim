@@ -959,8 +959,8 @@ class TurkishCustomerVisitAPITester:
         return True
 
 def main():
-    print("🚀 Starting Turkish Customer Visit Tracking API Tests")
-    print("=" * 60)
+    print("🚀 Starting Turkish Customer Visit Tracking API Tests - FAZ 3.0")
+    print("=" * 70)
     
     tester = TurkishCustomerVisitAPITester()
     
@@ -969,15 +969,114 @@ def main():
         print("❌ Root endpoint failed, stopping tests")
         return 1
 
-    # Seed data
+    # ===== FAZ 3.0: AUTHENTICATION TESTS =====
+    print("\n🔐 Testing FAZ 3.0: Authentication System...")
+    
+    # Test user registration
+    print("\n📝 Testing User Registration...")
+    
+    # Test registering new user
+    reg_success, reg_response = tester.test_register_new_user()
+    if reg_success:
+        if tester.validate_auth_response(reg_response, "register"):
+            print("✅ User registration working correctly")
+    
+    # Test registration edge cases
+    tester.test_register_existing_email()
+    tester.test_register_short_password()
+    
+    # Test user login
+    print("\n🔑 Testing User Login...")
+    
+    # First, ensure test user exists by trying to register
+    test_register_data = {
+        "email": tester.test_user_email,
+        "password": tester.test_user_password,
+        "name": "Test User"
+    }
+    test_reg_success, test_reg_response = tester.run_test(
+        "Ensure Test User Exists",
+        "POST",
+        "auth/register",
+        200,  # Will succeed if user doesn't exist
+        data=test_register_data
+    )
+    # Ignore if it fails (user already exists)
+    
+    # Test valid login
+    login_success, login_response = tester.test_login_valid_credentials()
+    if login_success:
+        if tester.validate_auth_response(login_response, "login"):
+            print("✅ User login working correctly")
+    
+    # Test login edge cases
+    tester.test_login_invalid_credentials()
+    tester.test_login_nonexistent_user()
+    
+    # Test authenticated endpoints
+    print("\n👤 Testing Authenticated Endpoints...")
+    
+    # Test /auth/me endpoint
+    me_success, me_response = tester.test_get_me_with_token()
+    if me_success:
+        if tester.validate_auth_response(me_response, "me"):
+            print("✅ Get current user info working correctly")
+    
+    # Test /auth/me without token
+    tester.test_get_me_without_token()
+    
+    # Test logout
+    logout_success, logout_response = tester.test_logout_with_token()
+    if logout_success:
+        if tester.validate_auth_response(logout_response, "logout"):
+            print("✅ User logout working correctly")
+    
+    # Test logout without token
+    tester.test_logout_without_token()
+    
+    # Test forgot password
+    print("\n🔄 Testing Password Reset...")
+    
+    forgot_success, forgot_response = tester.test_forgot_password()
+    if forgot_success:
+        if tester.validate_auth_response(forgot_response, "forgot-password"):
+            print("✅ Forgot password (MOCK) working correctly")
+            print("📧 Check console for MOCK reset token output")
+    
+    # Test forgot password with non-existent email
+    tester.test_forgot_password_nonexistent_email()
+
+    # ===== FAZ 3.0: BACKWARD COMPATIBILITY TESTS =====
+    print("\n🔄 Testing FAZ 3.0: Backward Compatibility...")
+    
+    # Seed data first to ensure we have test data
     seed_success, seed_response = tester.test_seed_data()
     if seed_success:
         print(f"📊 Seed response: {seed_response.get('message', 'Unknown')}")
 
+    # Test that existing data has user_id fields
+    print("\n📊 Testing Data Migration (user_id fields)...")
+    
+    tester.test_backward_compatibility_customers_have_user_id()
+    tester.test_backward_compatibility_visits_have_user_id()
+    tester.test_backward_compatibility_follow_ups_have_user_id()
+    
+    # Test that all existing features still work
+    print("\n🔧 Testing Existing Features Still Work...")
+    
+    tester.test_backward_compatibility_regions_work()
+    tester.test_backward_compatibility_analytics_work()
+    tester.test_backward_compatibility_customer_alerts_work()
+    tester.test_backward_compatibility_visits_today()
+    tester.test_backward_compatibility_follow_ups_today()
+
+    # ===== EXISTING FEATURE TESTS (CRUD Operations) =====
+    print("\n🔧 Testing CRUD Operations Still Work...")
+
     # Test customer operations
     customers_success, customers_data = tester.test_get_all_customers()
     if not customers_success:
-        print("❌ Failed to get customers, stopping tests")
+        print("❌ Failed to get customers, stopping CRUD tests")
         return 1
 
     print(f"📊 Found {len(customers_data)} customers")
@@ -1183,7 +1282,7 @@ def main():
     tester.test_delete_customer(customer_id)
 
     # Print final results
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)
     print(f"📊 Final Results: {tester.tests_passed}/{tester.tests_run} tests passed")
     
     if tester.tests_passed == tester.tests_run:
