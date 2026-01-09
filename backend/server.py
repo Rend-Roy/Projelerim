@@ -1425,7 +1425,15 @@ async def generate_daily_report_pdf(
     pdf.set_text_color(71, 85, 105)
     pdf.cell(0, 8, f"{day_name}, {date}", ln=True, align="C")
     
-    pdf.ln(8)
+    # FAZ 3.1: Kullanıcı Bilgisi
+    pdf.ln(3)
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(0, 6, f"Satış Temsilcisi: {user_name}", ln=True, align="C")
+    if user_email:
+        pdf.cell(0, 5, f"E-posta: {user_email}", ln=True, align="C")
+    
+    pdf.ln(5)
     
     # ===== ÖZET BÖLÜMÜ =====
     pdf.set_fill_color(241, 245, 249)
