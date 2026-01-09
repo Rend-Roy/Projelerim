@@ -608,6 +608,356 @@ class TurkishCustomerVisitAPITester:
         print("✅ Analytics visit_quality validation passed")
         return True
 
+    # ===== FAZ 3.0: AUTHENTICATION TESTS =====
+    def test_register_new_user(self):
+        """Test registering a new user"""
+        register_data = {
+            "email": f"newuser_{int(time.time())}@example.com",
+            "password": "newpass123",
+            "name": "Yeni Kullanıcı Test"
+        }
+        success, response = self.run_test(
+            "Register New User",
+            "POST",
+            "auth/register",
+            200,
+            data=register_data
+        )
+        return success, response
+
+    def test_register_existing_email(self):
+        """Test registering with existing email (should fail)"""
+        register_data = {
+            "email": self.test_user_email,
+            "password": "test123",
+            "name": "Test User"
+        }
+        success, response = self.run_test(
+            "Register Existing Email (Should Fail)",
+            "POST",
+            "auth/register",
+            400,
+            data=register_data
+        )
+        return success, response
+
+    def test_register_short_password(self):
+        """Test registering with short password (should fail)"""
+        register_data = {
+            "email": f"shortpass_{int(time.time())}@example.com",
+            "password": "123",  # Less than 6 characters
+            "name": "Short Pass User"
+        }
+        success, response = self.run_test(
+            "Register Short Password (Should Fail)",
+            "POST",
+            "auth/register",
+            400,
+            data=register_data
+        )
+        return success, response
+
+    def test_login_valid_credentials(self):
+        """Test login with valid credentials"""
+        login_data = {
+            "email": self.test_user_email,
+            "password": self.test_user_password,
+            "remember_me": True
+        }
+        success, response = self.run_test(
+            "Login Valid Credentials",
+            "POST",
+            "auth/login",
+            200,
+            data=login_data
+        )
+        
+        # Store token for authenticated requests
+        if success and 'token' in response:
+            self.auth_token = response['token']
+            print(f"🔑 Auth token stored for subsequent tests")
+        
+        return success, response
+
+    def test_login_invalid_credentials(self):
+        """Test login with invalid credentials (should fail)"""
+        login_data = {
+            "email": self.test_user_email,
+            "password": "wrongpassword",
+            "remember_me": False
+        }
+        success, response = self.run_test(
+            "Login Invalid Credentials (Should Fail)",
+            "POST",
+            "auth/login",
+            401,
+            data=login_data
+        )
+        return success, response
+
+    def test_login_nonexistent_user(self):
+        """Test login with non-existent user (should fail)"""
+        login_data = {
+            "email": "nonexistent@example.com",
+            "password": "somepassword",
+            "remember_me": False
+        }
+        success, response = self.run_test(
+            "Login Non-existent User (Should Fail)",
+            "POST",
+            "auth/login",
+            401,
+            data=login_data
+        )
+        return success, response
+
+    def test_get_me_with_token(self):
+        """Test getting current user info with valid token"""
+        success, response = self.run_test(
+            "Get Me With Token",
+            "GET",
+            "auth/me",
+            200,
+            auth_required=True
+        )
+        return success, response
+
+    def test_get_me_without_token(self):
+        """Test getting current user info without token (should fail)"""
+        success, response = self.run_test(
+            "Get Me Without Token (Should Fail)",
+            "GET",
+            "auth/me",
+            401
+        )
+        return success, response
+
+    def test_logout_with_token(self):
+        """Test logout with valid token"""
+        success, response = self.run_test(
+            "Logout With Token",
+            "POST",
+            "auth/logout",
+            200,
+            auth_required=True
+        )
+        return success, response
+
+    def test_logout_without_token(self):
+        """Test logout without token (should fail)"""
+        success, response = self.run_test(
+            "Logout Without Token (Should Fail)",
+            "POST",
+            "auth/logout",
+            401
+        )
+        return success, response
+
+    def test_forgot_password(self):
+        """Test forgot password functionality (MOCK)"""
+        forgot_data = {
+            "email": self.test_user_email
+        }
+        success, response = self.run_test(
+            "Forgot Password (MOCK)",
+            "POST",
+            "auth/forgot-password",
+            200,
+            data=forgot_data
+        )
+        return success, response
+
+    def test_forgot_password_nonexistent_email(self):
+        """Test forgot password with non-existent email (should still return success for security)"""
+        forgot_data = {
+            "email": "nonexistent@example.com"
+        }
+        success, response = self.run_test(
+            "Forgot Password Non-existent Email",
+            "POST",
+            "auth/forgot-password",
+            200,
+            data=forgot_data
+        )
+        return success, response
+
+    # ===== FAZ 3.0: BACKWARD COMPATIBILITY TESTS =====
+    def test_backward_compatibility_customers_have_user_id(self):
+        """Test that existing customers have user_id field"""
+        success, customers = self.run_test(
+            "Backward Compatibility - Customers Have user_id",
+            "GET",
+            "customers",
+            200
+        )
+        
+        if success and customers:
+            # Check if first customer has user_id
+            if len(customers) > 0:
+                first_customer = customers[0]
+                if 'user_id' in first_customer and first_customer['user_id']:
+                    print(f"✅ First customer has user_id: {first_customer['user_id']}")
+                    return True, customers
+                else:
+                    print(f"❌ First customer missing user_id: {first_customer}")
+                    return False, customers
+            else:
+                print("⚠️ No customers found to check user_id")
+                return True, customers  # Not a failure if no customers exist
+        
+        return success, customers
+
+    def test_backward_compatibility_visits_have_user_id(self):
+        """Test that existing visits have user_id field"""
+        success, visits = self.run_test(
+            "Backward Compatibility - Visits Have user_id",
+            "GET",
+            "visits",
+            200
+        )
+        
+        if success and visits:
+            # Check if visits have user_id
+            if len(visits) > 0:
+                first_visit = visits[0]
+                if 'user_id' in first_visit:
+                    print(f"✅ First visit has user_id field: {first_visit.get('user_id', 'None')}")
+                    return True, visits
+                else:
+                    print(f"❌ First visit missing user_id field: {first_visit}")
+                    return False, visits
+            else:
+                print("⚠️ No visits found to check user_id")
+                return True, visits
+        
+        return success, visits
+
+    def test_backward_compatibility_follow_ups_have_user_id(self):
+        """Test that existing follow-ups have user_id field"""
+        success, follow_ups = self.run_test(
+            "Backward Compatibility - Follow-ups Have user_id",
+            "GET",
+            "follow-ups",
+            200
+        )
+        
+        if success and follow_ups:
+            # Check if follow-ups have user_id
+            if len(follow_ups) > 0:
+                first_follow_up = follow_ups[0]
+                if 'user_id' in first_follow_up:
+                    print(f"✅ First follow-up has user_id field: {first_follow_up.get('user_id', 'None')}")
+                    return True, follow_ups
+                else:
+                    print(f"❌ First follow-up missing user_id field: {first_follow_up}")
+                    return False, follow_ups
+            else:
+                print("⚠️ No follow-ups found to check user_id")
+                return True, follow_ups
+        
+        return success, follow_ups
+
+    def test_backward_compatibility_regions_work(self):
+        """Test that regions endpoint still works"""
+        success, regions = self.run_test(
+            "Backward Compatibility - Regions Endpoint",
+            "GET",
+            "regions",
+            200
+        )
+        return success, regions
+
+    def test_backward_compatibility_analytics_work(self):
+        """Test that analytics endpoint still works"""
+        success, analytics = self.run_test(
+            "Backward Compatibility - Analytics Performance",
+            "GET",
+            "analytics/performance",
+            200,
+            params={"period": "weekly"}
+        )
+        return success, analytics
+
+    def test_backward_compatibility_customer_alerts_work(self):
+        """Test that customer alerts endpoint still works"""
+        success, alerts = self.run_test(
+            "Backward Compatibility - Customer Alerts",
+            "GET",
+            "customer-alerts",
+            200
+        )
+        return success, alerts
+
+    def test_backward_compatibility_visits_today(self):
+        """Test that visits for today endpoint works"""
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        success, visits = self.run_test(
+            "Backward Compatibility - Visits Today",
+            "GET",
+            "visits",
+            200,
+            params={"date": today_str}
+        )
+        return success, visits
+
+    def test_backward_compatibility_follow_ups_today(self):
+        """Test that follow-ups for today endpoint works"""
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        success, follow_ups = self.run_test(
+            "Backward Compatibility - Follow-ups Today",
+            "GET",
+            "follow-ups",
+            200,
+            params={"date": today_str}
+        )
+        return success, follow_ups
+
+    def validate_auth_response(self, response, action):
+        """Validate authentication API responses"""
+        print(f"\n🔍 Validating {action} response...")
+        
+        if action == "register" or action == "login":
+            required_fields = ['message', 'token', 'user']
+            user_fields = ['id', 'email', 'name', 'role']
+            
+            # Check main fields
+            for field in required_fields:
+                if field not in response:
+                    print(f"❌ Missing field '{field}' in {action} response")
+                    return False
+            
+            # Check user object fields
+            user = response.get('user', {})
+            for field in user_fields:
+                if field not in user:
+                    print(f"❌ Missing field '{field}' in user object")
+                    return False
+            
+            # Check token is not empty
+            if not response.get('token'):
+                print(f"❌ Empty token in {action} response")
+                return False
+                
+        elif action == "me":
+            user_fields = ['id', 'email', 'name', 'role']
+            for field in user_fields:
+                if field not in response:
+                    print(f"❌ Missing field '{field}' in me response")
+                    return False
+                    
+        elif action == "logout":
+            if 'message' not in response:
+                print(f"❌ Missing message field in logout response")
+                return False
+                
+        elif action == "forgot-password":
+            if 'message' not in response:
+                print(f"❌ Missing message field in forgot-password response")
+                return False
+        
+        print(f"✅ {action.capitalize()} response validation passed")
+        return True
+
 def main():
     print("🚀 Starting Turkish Customer Visit Tracking API Tests")
     print("=" * 60)
