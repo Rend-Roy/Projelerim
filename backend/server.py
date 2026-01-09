@@ -143,6 +143,7 @@ class Customer(BaseModel):
     price_status: str = "Standart"  # İskontolu veya Standart
     visit_days: List[str] = []  # Pazartesi, Salı, Çarşamba, Perşembe, Cuma, Cumartesi, Pazar
     alerts: List[str] = []  # Müşteri uyarıları (Kırmızı Bayrak)
+    user_id: Optional[str] = None  # FAZ 3.0: Kullanıcıya ait (opsiyonel - geriye uyumluluk)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Müşteri uyarı seçenekleri
