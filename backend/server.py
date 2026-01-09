@@ -31,7 +31,107 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# Define Models
+# =============================================================================
+# FAZ 3.0: Authentication Configuration
+# =============================================================================
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+security = HTTPBearer(auto_error=False)
+
+# JWT Configuration
+JWT_SECRET = os.environ.get("JWT_SECRET", "satis-takip-secret-key-2024")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_HOURS = 24 * 7  # 7 gün (Beni Hatırla için)
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def create_access_token(user_id: str, email: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRATION_HOURS)
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "exp": expire
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def decode_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token süresi dolmuş")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Geçersiz token")
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[dict]:
+    """Mevcut kullanıcıyı al - opsiyonel (geriye dönük uyumluluk için)"""
+    if not credentials:
+        return None
+    try:
+        payload = decode_token(credentials.credentials)
+        user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0})
+        return user
+    except:
+        return None
+
+async def require_auth(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    """Zorunlu authentication - giriş yapılmamışsa hata döndür"""
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Giriş yapmanız gerekiyor")
+    try:
+        payload = decode_token(credentials.credentials)
+        user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="Kullanıcı bulunamadı")
+        return user
+    except HTTPException:
+        raise
+    except:
+        raise HTTPException(status_code=401, detail="Geçersiz oturum")
+
+# =============================================================================
+# FAZ 3.0: User Model
+# =============================================================================
+class User(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: str
+    password_hash: str
+    name: str
+    role: str = "representative"  # representative, admin (ileride)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class UserRegister(BaseModel):
+    email: str
+    password: str
+    name: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+    remember_me: bool = False
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    name: str
+    role: str
+    created_at: datetime
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+# =============================================================================
+# Define Models (Mevcut modeller - user_id eklendi)
+# =============================================================================
 class Customer(BaseModel):
     model_config = ConfigDict(extra="ignore")
     
