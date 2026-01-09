@@ -267,7 +267,178 @@ class DailyReportNote(BaseModel):
 class DailyReportNoteUpdate(BaseModel):
     note: str
 
-# Customer endpoints
+# =============================================================================
+# FAZ 3.0: Authentication Endpoints
+# =============================================================================
+
+@api_router.post("/auth/register")
+async def register(input: UserRegister):
+    """Yeni kullanıcı kaydı"""
+    # Email kontrolü
+    existing = await db.users.find_one({"email": input.email.lower()})
+    if existing:
+        raise HTTPException(status_code=400, detail="Bu e-posta adresi zaten kayıtlı")
+    
+    # Şifre validasyonu
+    if len(input.password) < 6:
+        raise HTTPException(status_code=400, detail="Şifre en az 6 karakter olmalı")
+    
+    # İlk kullanıcı mı kontrol et (mevcut verileri atamak için)
+    user_count = await db.users.count_documents({})
+    is_first_user = user_count == 0
+    
+    # Kullanıcı oluştur
+    user = User(
+        email=input.email.lower(),
+        password_hash=hash_password(input.password),
+        name=input.name,
+        role="representative"
+    )
+    
+    await db.users.insert_one(user.model_dump())
+    
+    # İlk kullanıcıysa, mevcut tüm verileri bu kullanıcıya ata
+    if is_first_user:
+        await db.customers.update_many(
+            {"user_id": None},
+            {"$set": {"user_id": user.id}}
+        )
+        await db.visits.update_many(
+            {"user_id": None},
+            {"$set": {"user_id": user.id}}
+        )
+        await db.follow_ups.update_many(
+            {"user_id": None},
+            {"$set": {"user_id": user.id}}
+        )
+        await db.regions.update_many(
+            {"user_id": None},
+            {"$set": {"user_id": user.id}}
+        )
+        logging.info(f"İlk kullanıcı kaydı: Mevcut veriler {user.id} kullanıcısına atandı")
+    
+    # Token oluştur
+    token = create_access_token(user.id, user.email)
+    
+    return {
+        "message": "Kayıt başarılı",
+        "token": token,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role
+        }
+    }
+
+@api_router.post("/auth/login")
+async def login(input: UserLogin):
+    """Kullanıcı girişi"""
+    user = await db.users.find_one({"email": input.email.lower()}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="E-posta veya şifre hatalı")
+    
+    if not verify_password(input.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="E-posta veya şifre hatalı")
+    
+    # Token oluştur
+    token = create_access_token(user["id"], user["email"])
+    
+    return {
+        "message": "Giriş başarılı",
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "role": user["role"]
+        }
+    }
+
+@api_router.post("/auth/logout")
+async def logout(current_user: dict = Depends(require_auth)):
+    """Kullanıcı çıkışı (client-side token silme)"""
+    return {"message": "Çıkış başarılı"}
+
+@api_router.get("/auth/me")
+async def get_me(current_user: dict = Depends(require_auth)):
+    """Mevcut kullanıcı bilgisini al"""
+    return {
+        "id": current_user["id"],
+        "email": current_user["email"],
+        "name": current_user["name"],
+        "role": current_user["role"]
+    }
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(input: ForgotPasswordRequest):
+    """Şifre sıfırlama talebi (MOCK - konsola yazdırır)"""
+    user = await db.users.find_one({"email": input.email.lower()}, {"_id": 0})
+    
+    # Güvenlik: Kullanıcı olsun olmasın aynı mesajı döndür
+    if user:
+        # Reset token oluştur (gerçek uygulamada e-posta ile gönderilir)
+        reset_token = str(uuid.uuid4())
+        expire = datetime.now(timezone.utc) + timedelta(hours=1)
+        
+        await db.password_resets.insert_one({
+            "user_id": user["id"],
+            "token": reset_token,
+            "expires_at": expire.isoformat(),
+            "used": False
+        })
+        
+        # MOCK: Konsola yazdır (gerçek uygulamada e-posta gönderilir)
+        logging.info(f"=== ŞİFRE SIFIRLAMA MOCK ===")
+        logging.info(f"E-posta: {input.email}")
+        logging.info(f"Sıfırlama Token: {reset_token}")
+        logging.info(f"Geçerlilik: 1 saat")
+        logging.info(f"============================")
+        print(f"\n🔐 ŞİFRE SIFIRLAMA TOKEN (MOCK)")
+        print(f"   E-posta: {input.email}")
+        print(f"   Token: {reset_token}\n")
+    
+    return {"message": "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi"}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(input: ResetPasswordRequest):
+    """Şifreyi sıfırla"""
+    # Token kontrolü
+    reset_record = await db.password_resets.find_one({
+        "token": input.token,
+        "used": False
+    })
+    
+    if not reset_record:
+        raise HTTPException(status_code=400, detail="Geçersiz veya süresi dolmuş token")
+    
+    # Süre kontrolü
+    expires_at = datetime.fromisoformat(reset_record["expires_at"].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="Token süresi dolmuş")
+    
+    # Şifre validasyonu
+    if len(input.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Şifre en az 6 karakter olmalı")
+    
+    # Şifreyi güncelle
+    new_hash = hash_password(input.new_password)
+    await db.users.update_one(
+        {"id": reset_record["user_id"]},
+        {"$set": {"password_hash": new_hash}}
+    )
+    
+    # Token'ı kullanılmış olarak işaretle
+    await db.password_resets.update_one(
+        {"token": input.token},
+        {"$set": {"used": True}}
+    )
+    
+    return {"message": "Şifreniz başarıyla güncellendi"}
+
+# =============================================================================
+# Customer endpoints (Mevcut - değiştirilmedi)
+# =============================================================================
 @api_router.get("/")
 async def root():
     return {"message": "Müşteri Ziyaret Takip API"}
