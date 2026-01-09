@@ -238,6 +238,7 @@ class FollowUp(BaseModel):
     reason: Optional[str] = None
     note: Optional[str] = None
     completed_at: Optional[datetime] = None
+    user_id: Optional[str] = None  # FAZ 3.0: Kullanıcıya ait (opsiyonel)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class FollowUpCreate(BaseModel):
