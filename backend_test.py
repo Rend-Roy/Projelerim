@@ -13,10 +13,14 @@ class TurkishCustomerVisitAPITester:
         self.test_user_email = "test@example.com"
         self.test_user_password = "test123"
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, params=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, params=None, auth_required=False):
         """Run a single API test"""
         url = f"{self.base_url}/{endpoint}"
         headers = {'Content-Type': 'application/json'}
+        
+        # Add authorization header if auth is required and token is available
+        if auth_required and self.auth_token:
+            headers['Authorization'] = f'Bearer {self.auth_token}'
 
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
@@ -41,7 +45,7 @@ class TurkishCustomerVisitAPITester:
                 print(f"Response: {response.text[:200]}")
                 self.test_results.append({"test": name, "status": "FAILED", "details": f"Expected {expected_status}, got {response.status_code}"})
 
-            return success, response.json() if response.content and response.status_code < 400 else {}
+            return success, response.json() if response.content and response.status_code < 500 else {}
 
         except Exception as e:
             print(f"❌ Failed - Error: {str(e)}")
