@@ -23,6 +23,7 @@ export default function MobileLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isActive = (path) => {
     if (path === "/") return location.pathname === "/";
@@ -36,8 +37,21 @@ export default function MobileLayout({ children }) {
 
   return (
     <div className="min-h-screen min-h-dvh bg-slate-50 flex flex-col">
+      {/* Side Drawer */}
+      <SideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      
       {/* Top Header with User Info */}
       <header className="bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
+        {/* Left - Hamburger Menu */}
+        <button 
+          onClick={() => setDrawerOpen(true)}
+          className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+          data-testid="hamburger-menu"
+        >
+          <Menu className="w-5 h-5 text-slate-600" />
+        </button>
+        
+        {/* Center - Logo */}
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
             <CalendarCheck className="w-4 h-4 text-white" />
@@ -45,15 +59,13 @@ export default function MobileLayout({ children }) {
           <span className="font-semibold text-slate-900">Satış Takip</span>
         </div>
         
+        {/* Right - User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+            <button className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
               <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
                 <User className="w-4 h-4 text-slate-600" />
               </div>
-              <span className="text-sm font-medium text-slate-700 hidden sm:block">
-                {user?.name || "Kullanıcı"}
-              </span>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
