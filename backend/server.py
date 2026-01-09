@@ -2113,6 +2113,82 @@ async def generate_daily_report_pdf(
         pdf.set_xy(15, pdf.get_y() + 5)
         pdf.multi_cell(180, 6, daily_note_text[:300])
     
+    # ===== FAZ 4: GÜNLÜK ARAÇ KULLANIM ÖZETİ =====
+    if current_user:
+        # Bugünkü KM kaydını al
+        daily_km_record = await db.daily_km_records.find_one(
+            {"user_id": current_user["id"], "date": date},
+            {"_id": 0}
+        )
+        
+        if daily_km_record:
+            # Araç bilgisini al
+            vehicle = await db.vehicles.find_one(
+                {"id": daily_km_record.get("vehicle_id")},
+                {"_id": 0}
+            )
+            
+            if pdf.get_y() > 200:
+                pdf.add_page()
+            
+            pdf.ln(10)
+            pdf.set_font("DejaVu", "B", 14)
+            pdf.set_text_color(15, 23, 42)
+            pdf.cell(0, 10, "🚗 GÜNLÜK ARAÇ KULLANIM ÖZETİ", ln=True)
+            
+            # Araç bilgi kutusu
+            pdf.set_fill_color(236, 253, 245)  # Yeşil arka plan
+            pdf.set_draw_color(34, 197, 94)
+            box_height = 50
+            pdf.rect(10, pdf.get_y(), 190, box_height, "DF")
+            
+            y_start = pdf.get_y() + 5
+            
+            # Araç adı
+            if vehicle:
+                pdf.set_font("DejaVu", "B", 10)
+                pdf.set_text_color(22, 101, 52)
+                pdf.set_xy(15, y_start)
+                pdf.cell(0, 6, f"Araç: {vehicle.get('name', '-')} ({vehicle.get('plate', '-')})", ln=True)
+                y_start += 8
+            
+            # KM Bilgileri
+            pdf.set_font("DejaVu", "", 10)
+            pdf.set_text_color(15, 23, 42)
+            
+            start_km = daily_km_record.get("start_km", 0)
+            end_km = daily_km_record.get("end_km")
+            daily_km = daily_km_record.get("daily_km")
+            avg_cost = daily_km_record.get("avg_cost_per_km")
+            daily_cost = daily_km_record.get("daily_cost")
+            
+            pdf.set_xy(15, y_start)
+            pdf.cell(60, 6, f"Gün Başlangıç KM: {start_km:,.0f}")
+            pdf.cell(60, 6, f"Gün Bitiş KM: {end_km:,.0f}" if end_km else "Gün Bitiş KM: -")
+            pdf.ln(8)
+            
+            pdf.set_xy(15, y_start + 10)
+            pdf.set_font("DejaVu", "B", 10)
+            if daily_km:
+                pdf.cell(60, 6, f"Günlük KM: {daily_km:,.0f} km")
+            else:
+                pdf.cell(60, 6, "Günlük KM: -")
+            
+            if avg_cost:
+                pdf.cell(60, 6, f"Ort. KM Maliyeti: {avg_cost:.3f} TL/km")
+            pdf.ln(8)
+            
+            # Günlük maliyet (vurgulu)
+            pdf.set_xy(15, y_start + 22)
+            pdf.set_font("DejaVu", "B", 12)
+            pdf.set_text_color(22, 101, 52)
+            if daily_cost:
+                pdf.cell(0, 8, f"💰 Günlük Araç Maliyeti: {daily_cost:,.2f} TL")
+            else:
+                pdf.cell(0, 8, "💰 Günlük Araç Maliyeti: Hesaplanamadı")
+            
+            pdf.ln(box_height - 5)
+    
     # ===== FOOTER =====
     pdf.ln(15)
     pdf.set_font("DejaVu", "", 8)
