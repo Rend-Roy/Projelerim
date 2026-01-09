@@ -268,6 +268,88 @@ class DailyReportNoteUpdate(BaseModel):
     note: str
 
 # =============================================================================
+# FAZ 4: Araç, Yakıt ve Günlük KM Takibi Modelleri
+# =============================================================================
+
+# Yakıt türleri
+FUEL_TYPES = ["Benzin", "Dizel", "LPG", "Elektrik", "Hibrit"]
+
+class Vehicle(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    name: str  # Araç adı (ör: Fiat Doblo)
+    plate: Optional[str] = None  # Plaka (opsiyonel)
+    fuel_type: str = "Benzin"  # Benzin, Dizel, LPG, Elektrik, Hibrit
+    starting_km: float = 0  # Başlangıç kilometresi
+    is_active: bool = True  # Aktif/pasif durumu
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class VehicleCreate(BaseModel):
+    name: str
+    plate: Optional[str] = None
+    fuel_type: str = "Benzin"
+    starting_km: float = 0
+    is_active: bool = True
+
+class VehicleUpdate(BaseModel):
+    name: Optional[str] = None
+    plate: Optional[str] = None
+    fuel_type: Optional[str] = None
+    starting_km: Optional[float] = None
+    is_active: Optional[bool] = None
+
+class FuelRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    vehicle_id: str
+    date: str  # YYYY-MM-DD
+    current_km: float  # O anki kilometre
+    liters: float  # Alınan yakıt (litre veya kWh)
+    amount: float  # Toplam tutar (TL)
+    note: Optional[str] = None
+    # Hesaplanan alanlar
+    distance_since_last: Optional[float] = None  # Bir önceki yakıta göre gidilen km
+    consumption_per_100km: Optional[float] = None  # 100 km'de tüketim
+    cost_per_km: Optional[float] = None  # KM başı maliyet (TL/km)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class FuelRecordCreate(BaseModel):
+    vehicle_id: str
+    date: str
+    current_km: float
+    liters: float
+    amount: float
+    note: Optional[str] = None
+
+class DailyKmRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    vehicle_id: str
+    date: str  # YYYY-MM-DD
+    start_km: float  # Gün başlangıç kilometresi
+    end_km: Optional[float] = None  # Gün bitiş kilometresi
+    daily_km: Optional[float] = None  # Günlük yapılan km (otomatik hesaplanır)
+    avg_cost_per_km: Optional[float] = None  # Ortalama km maliyeti (son 30 gün)
+    daily_cost: Optional[float] = None  # Günlük araç maliyeti (TL)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class DailyKmRecordCreate(BaseModel):
+    vehicle_id: str
+    date: str
+    start_km: float
+    end_km: Optional[float] = None
+
+class DailyKmRecordUpdate(BaseModel):
+    start_km: Optional[float] = None
+    end_km: Optional[float] = None
+
+# =============================================================================
 # FAZ 3.0: Authentication Endpoints
 # =============================================================================
 
