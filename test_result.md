@@ -203,8 +203,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "FAZ 3.0 - Authentication tam test"
-    - "Mevcut özelliklerin çalıştığını doğrula"
+    - "Frontend authentication testing"
+    - "UI integration verification"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
