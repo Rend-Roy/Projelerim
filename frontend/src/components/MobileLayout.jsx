@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CalendarCheck, Users, PlusCircle, BarChart3, MapPin, LogOut, User } from "lucide-react";
+import { CalendarCheck, Users, PlusCircle, BarChart3, MapPin, LogOut, User, Menu } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import SideDrawer from "@/components/SideDrawer";
 import {
   DropdownMenu,
   DropdownMenuContent,
