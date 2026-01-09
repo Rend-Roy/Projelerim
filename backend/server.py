@@ -1439,6 +1439,395 @@ async def seed_data():
     await db.customers.insert_many(sample_customers)
     return {"message": "Örnek veriler eklendi", "customer_count": len(sample_customers)}
 
+# =============================================================================
+# FAZ 4: Araç, Yakıt ve Günlük KM Takibi Endpoint'leri
+# =============================================================================
+
+# Yakıt türleri listesi
+@api_router.get("/fuel-types")
+async def get_fuel_types():
+    """Desteklenen yakıt türlerini döndür"""
+    return {"fuel_types": FUEL_TYPES}
+
+# ===== ARAÇ YÖNETİMİ =====
+@api_router.get("/vehicles")
+async def get_vehicles(current_user: dict = Depends(require_auth)):
+    """Kullanıcının araçlarını listele"""
+    vehicles = await db.vehicles.find(
+        {"user_id": current_user["id"]}, 
+        {"_id": 0}
+    ).to_list(100)
+    return vehicles
+
+@api_router.get("/vehicles/active")
+async def get_active_vehicle(current_user: dict = Depends(require_auth)):
+    """Kullanıcının aktif aracını getir"""
+    vehicle = await db.vehicles.find_one(
+        {"user_id": current_user["id"], "is_active": True}, 
+        {"_id": 0}
+    )
+    return vehicle
+
+@api_router.get("/vehicles/{vehicle_id}")
+async def get_vehicle(vehicle_id: str, current_user: dict = Depends(require_auth)):
+    """Araç detayını getir"""
+    vehicle = await db.vehicles.find_one(
+        {"id": vehicle_id, "user_id": current_user["id"]}, 
+        {"_id": 0}
+    )
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Araç bulunamadı")
+    return vehicle
+
+@api_router.post("/vehicles")
+async def create_vehicle(input: VehicleCreate, current_user: dict = Depends(require_auth)):
+    """Yeni araç ekle"""
+    # Eğer bu araç aktif olacaksa, diğerlerini pasif yap
+    if input.is_active:
+        await db.vehicles.update_many(
+            {"user_id": current_user["id"]},
+            {"$set": {"is_active": False}}
+        )
+    
+    vehicle = Vehicle(
+        user_id=current_user["id"],
+        name=input.name,
+        plate=input.plate,
+        fuel_type=input.fuel_type,
+        starting_km=input.starting_km,
+        is_active=input.is_active
+    )
+    
+    await db.vehicles.insert_one(vehicle.model_dump())
+    return vehicle.model_dump()
+
+@api_router.put("/vehicles/{vehicle_id}")
+async def update_vehicle(vehicle_id: str, input: VehicleUpdate, current_user: dict = Depends(require_auth)):
+    """Araç güncelle"""
+    vehicle = await db.vehicles.find_one(
+        {"id": vehicle_id, "user_id": current_user["id"]}, 
+        {"_id": 0}
+    )
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Araç bulunamadı")
+    
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    
+    # Eğer bu araç aktif yapılıyorsa, diğerlerini pasif yap
+    if update_data.get("is_active") == True:
+        await db.vehicles.update_many(
+            {"user_id": current_user["id"], "id": {"$ne": vehicle_id}},
+            {"$set": {"is_active": False}}
+        )
+    
+    if update_data:
+        await db.vehicles.update_one({"id": vehicle_id}, {"$set": update_data})
+    
+    updated = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/vehicles/{vehicle_id}")
+async def delete_vehicle(vehicle_id: str, current_user: dict = Depends(require_auth)):
+    """Araç sil"""
+    result = await db.vehicles.delete_one(
+        {"id": vehicle_id, "user_id": current_user["id"]}
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Araç bulunamadı")
+    return {"message": "Araç silindi"}
+
+# ===== YAKIT KAYITLARI =====
+@api_router.get("/fuel-records")
+async def get_fuel_records(
+    vehicle_id: Optional[str] = None,
+    limit: int = 50,
+    current_user: dict = Depends(require_auth)
+):
+    """Yakıt kayıtlarını listele"""
+    query = {"user_id": current_user["id"]}
+    if vehicle_id:
+        query["vehicle_id"] = vehicle_id
+    
+    records = await db.fuel_records.find(
+        query, 
+        {"_id": 0}
+    ).sort("date", -1).to_list(limit)
+    
+    return records
+
+@api_router.post("/fuel-records")
+async def create_fuel_record(input: FuelRecordCreate, current_user: dict = Depends(require_auth)):
+    """Yeni yakıt kaydı ekle ve otomatik hesaplamaları yap"""
+    # Araç kontrolü
+    vehicle = await db.vehicles.find_one(
+        {"id": input.vehicle_id, "user_id": current_user["id"]}, 
+        {"_id": 0}
+    )
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Araç bulunamadı")
+    
+    # Bir önceki yakıt kaydını bul (aynı araç için)
+    last_record = await db.fuel_records.find_one(
+        {"vehicle_id": input.vehicle_id, "user_id": current_user["id"]},
+        {"_id": 0},
+        sort=[("current_km", -1)]
+    )
+    
+    # Hesaplamalar
+    distance_since_last = None
+    consumption_per_100km = None
+    cost_per_km = None
+    
+    if last_record and input.current_km > last_record.get("current_km", 0):
+        distance_since_last = input.current_km - last_record["current_km"]
+        if distance_since_last > 0 and input.liters > 0:
+            consumption_per_100km = round((input.liters / distance_since_last) * 100, 2)
+            cost_per_km = round(input.amount / distance_since_last, 3)
+    
+    record = FuelRecord(
+        user_id=current_user["id"],
+        vehicle_id=input.vehicle_id,
+        date=input.date,
+        current_km=input.current_km,
+        liters=input.liters,
+        amount=input.amount,
+        note=input.note,
+        distance_since_last=distance_since_last,
+        consumption_per_100km=consumption_per_100km,
+        cost_per_km=cost_per_km
+    )
+    
+    await db.fuel_records.insert_one(record.model_dump())
+    return record.model_dump()
+
+@api_router.delete("/fuel-records/{record_id}")
+async def delete_fuel_record(record_id: str, current_user: dict = Depends(require_auth)):
+    """Yakıt kaydını sil"""
+    result = await db.fuel_records.delete_one(
+        {"id": record_id, "user_id": current_user["id"]}
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Kayıt bulunamadı")
+    return {"message": "Yakıt kaydı silindi"}
+
+# ===== GÜNLÜK KM TAKİBİ =====
+@api_router.get("/daily-km")
+async def get_daily_km_records(
+    vehicle_id: Optional[str] = None,
+    date: Optional[str] = None,
+    limit: int = 30,
+    current_user: dict = Depends(require_auth)
+):
+    """Günlük KM kayıtlarını listele"""
+    query = {"user_id": current_user["id"]}
+    if vehicle_id:
+        query["vehicle_id"] = vehicle_id
+    if date:
+        query["date"] = date
+    
+    records = await db.daily_km_records.find(
+        query, 
+        {"_id": 0}
+    ).sort("date", -1).to_list(limit)
+    
+    return records
+
+@api_router.get("/daily-km/today")
+async def get_today_km(current_user: dict = Depends(require_auth)):
+    """Bugünkü KM kaydını getir (aktif araç için)"""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    
+    # Aktif aracı bul
+    vehicle = await db.vehicles.find_one(
+        {"user_id": current_user["id"], "is_active": True}, 
+        {"_id": 0}
+    )
+    
+    if not vehicle:
+        return None
+    
+    record = await db.daily_km_records.find_one(
+        {"user_id": current_user["id"], "vehicle_id": vehicle["id"], "date": today}, 
+        {"_id": 0}
+    )
+    
+    if record:
+        record["vehicle"] = vehicle
+    
+    return record
+
+async def calculate_avg_cost_per_km(user_id: str, vehicle_id: str) -> Optional[float]:
+    """Son 30 günlük yakıt kayıtlarından ortalama km maliyetini hesapla"""
+    thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+    
+    records = await db.fuel_records.find(
+        {
+            "user_id": user_id,
+            "vehicle_id": vehicle_id,
+            "date": {"$gte": thirty_days_ago},
+            "cost_per_km": {"$ne": None}
+        },
+        {"_id": 0}
+    ).to_list(100)
+    
+    if not records:
+        return None
+    
+    costs = [r["cost_per_km"] for r in records if r.get("cost_per_km")]
+    if not costs:
+        return None
+    
+    return round(sum(costs) / len(costs), 3)
+
+@api_router.post("/daily-km")
+async def create_or_update_daily_km(
+    input: DailyKmRecordCreate, 
+    current_user: dict = Depends(require_auth)
+):
+    """Günlük KM kaydı oluştur veya güncelle"""
+    # Araç kontrolü
+    vehicle = await db.vehicles.find_one(
+        {"id": input.vehicle_id, "user_id": current_user["id"]}, 
+        {"_id": 0}
+    )
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Araç bulunamadı")
+    
+    # Mevcut kayıt var mı?
+    existing = await db.daily_km_records.find_one(
+        {"user_id": current_user["id"], "vehicle_id": input.vehicle_id, "date": input.date},
+        {"_id": 0}
+    )
+    
+    # Hesaplamalar
+    daily_km = None
+    daily_cost = None
+    avg_cost = await calculate_avg_cost_per_km(current_user["id"], input.vehicle_id)
+    
+    if input.end_km and input.start_km:
+        daily_km = input.end_km - input.start_km
+        if avg_cost and daily_km > 0:
+            daily_cost = round(daily_km * avg_cost, 2)
+    
+    if existing:
+        # Güncelle
+        update_data = {
+            "start_km": input.start_km,
+            "daily_km": daily_km,
+            "avg_cost_per_km": avg_cost,
+            "daily_cost": daily_cost
+        }
+        if input.end_km:
+            update_data["end_km"] = input.end_km
+        
+        await db.daily_km_records.update_one(
+            {"id": existing["id"]},
+            {"$set": update_data}
+        )
+        updated = await db.daily_km_records.find_one({"id": existing["id"]}, {"_id": 0})
+        return updated
+    else:
+        # Yeni kayıt
+        record = DailyKmRecord(
+            user_id=current_user["id"],
+            vehicle_id=input.vehicle_id,
+            date=input.date,
+            start_km=input.start_km,
+            end_km=input.end_km,
+            daily_km=daily_km,
+            avg_cost_per_km=avg_cost,
+            daily_cost=daily_cost
+        )
+        await db.daily_km_records.insert_one(record.model_dump())
+        return record.model_dump()
+
+@api_router.put("/daily-km/{record_id}")
+async def update_daily_km(
+    record_id: str,
+    input: DailyKmRecordUpdate,
+    current_user: dict = Depends(require_auth)
+):
+    """Günlük KM kaydını güncelle"""
+    record = await db.daily_km_records.find_one(
+        {"id": record_id, "user_id": current_user["id"]},
+        {"_id": 0}
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Kayıt bulunamadı")
+    
+    update_data = {}
+    start_km = input.start_km if input.start_km is not None else record.get("start_km")
+    end_km = input.end_km if input.end_km is not None else record.get("end_km")
+    
+    if input.start_km is not None:
+        update_data["start_km"] = input.start_km
+    if input.end_km is not None:
+        update_data["end_km"] = input.end_km
+    
+    # Hesaplamalar
+    if start_km and end_km:
+        daily_km = end_km - start_km
+        update_data["daily_km"] = daily_km
+        
+        avg_cost = await calculate_avg_cost_per_km(current_user["id"], record["vehicle_id"])
+        update_data["avg_cost_per_km"] = avg_cost
+        
+        if avg_cost and daily_km > 0:
+            update_data["daily_cost"] = round(daily_km * avg_cost, 2)
+    
+    if update_data:
+        await db.daily_km_records.update_one({"id": record_id}, {"$set": update_data})
+    
+    updated = await db.daily_km_records.find_one({"id": record_id}, {"_id": 0})
+    return updated
+
+# ===== ARAÇ İSTATİSTİKLERİ =====
+@api_router.get("/vehicle-stats/{vehicle_id}")
+async def get_vehicle_stats(vehicle_id: str, current_user: dict = Depends(require_auth)):
+    """Araç istatistiklerini getir"""
+    vehicle = await db.vehicles.find_one(
+        {"id": vehicle_id, "user_id": current_user["id"]},
+        {"_id": 0}
+    )
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Araç bulunamadı")
+    
+    # Tüm yakıt kayıtları
+    fuel_records = await db.fuel_records.find(
+        {"vehicle_id": vehicle_id, "user_id": current_user["id"]},
+        {"_id": 0}
+    ).sort("date", -1).to_list(1000)
+    
+    # Son 30 gün yakıt kayıtları
+    thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+    recent_records = [r for r in fuel_records if r.get("date", "") >= thirty_days_ago]
+    
+    # Hesaplamalar
+    total_fuel_cost = sum(r.get("amount", 0) for r in fuel_records)
+    total_liters = sum(r.get("liters", 0) for r in fuel_records)
+    
+    # Son 30 gün ortalamaları
+    recent_costs_per_km = [r.get("cost_per_km") for r in recent_records if r.get("cost_per_km")]
+    recent_consumption = [r.get("consumption_per_100km") for r in recent_records if r.get("consumption_per_100km")]
+    
+    avg_cost_per_km = round(sum(recent_costs_per_km) / len(recent_costs_per_km), 3) if recent_costs_per_km else None
+    avg_consumption = round(sum(recent_consumption) / len(recent_consumption), 2) if recent_consumption else None
+    
+    # Bu ay yakıt gideri
+    current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+    monthly_records = [r for r in fuel_records if r.get("date", "").startswith(current_month)]
+    monthly_fuel_cost = sum(r.get("amount", 0) for r in monthly_records)
+    
+    return {
+        "vehicle": vehicle,
+        "total_fuel_cost": total_fuel_cost,
+        "total_liters": total_liters,
+        "monthly_fuel_cost": monthly_fuel_cost,
+        "avg_cost_per_km": avg_cost_per_km,
+        "avg_consumption_per_100km": avg_consumption,
+        "fuel_record_count": len(fuel_records)
+    }
+
 # PDF Report endpoint
 @api_router.get("/report/pdf/{day_name}/{date}")
 async def generate_daily_report_pdf(
