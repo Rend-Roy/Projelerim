@@ -1,65 +1,92 @@
 # Müşteri Ziyaret Takip Uygulaması - PRD
 
 ## Problem Statement
-Günlük müşteri ziyaretlerini takip etmek için kullanılan, mobil uyumlu (özellikle iOS) bir Türkçe web uygulaması.
+Satış temsilcileri için çok kullanıcılı, günlük müşteri ziyaretlerini takip eden, mobil uyumlu Türkçe web uygulaması. Her kullanıcının verileri tamamen izole edilmiş durumda.
 
 ## User Personas
-- **Saha Satış Temsilcisi**: Mobil cihazından (özellikle iOS) tek elle kullanacak, günlük müşteri ziyaretlerini takip edecek kullanıcı
+- **Saha Satış Temsilcisi**: Mobil cihazından (özellikle iOS) günlük müşteri ziyaretlerini, tahsilatları ve araç giderlerini takip eden kullanıcı
+- **Yönetici** (İleride): Ekibin performansını izleyen kullanıcı
 
-## Core Requirements (Static)
+## Core Requirements
 - Temiz, sade ve gözü yormayan tasarım
 - Açık renk arka plan (beyaz/açık gri)
 - Tek vurgu rengi: Mavi (#0055FF)
 - Mobilde tek elle rahat kullanım
 - Türkiye saat dilimi (UTC+3)
 - Türkçe gün isimleri ve arayüz
+- Kullanıcı bazlı veri izolasyonu (güvenlik)
 
-## User Choices
-- Vurgu rengi: Mavi
-- Örnek verilerle başla
-- Müşteri yönetimi ekranı olsun
-- Giriş sistemi yok
+## Completed Phases
 
-## What's Been Implemented (06 Ocak 2026)
+### FAZ 1: Core Features (Tamamlandı)
+- [x] Bugün sayfası - günlük ziyaret listesi
+- [x] Müşteri CRUD - ekleme, düzenleme, silme
+- [x] Ziyaret takibi - durum, not, tahsilat
+- [x] Bölge yönetimi
+- [x] Takip sistemi (follow-ups)
+- [x] Performans analitiği
+- [x] PDF rapor oluşturma
+- [x] Excel'den toplu müşteri yükleme
 
-### Backend (FastAPI + MongoDB)
-- Müşteri CRUD API'leri (/api/customers)
-- Ziyaret takip API'leri (/api/visits)
-- Günlük müşteri filtreleme (/api/customers/today/{day_name})
-- Örnek veri seed endpoint'i (/api/seed)
+### FAZ 2: Visit Quality (Tamamlandı)
+- [x] Ziyaret süresi takibi (Başlat/Bitir)
+- [x] 1-5 yıldız kalite değerlendirmesi
+- [x] Müşteri uyarıları (Kırmızı Bayrak sistemi)
+- [x] Kalite metrikleri dashboard'a entegre
 
-### Frontend (React + Tailwind + Shadcn UI)
-- **Bugün Sayfası**: Günün Türkçe ismi, tarih, ilerleme çubuğu, ziyaret edilecek müşteri kartları
-- **Müşteri Detay Sayfası**: Ziyaret durumu işaretleme, not alanı, kaydet butonu
-- **Müşteriler Sayfası**: Bölgelere göre gruplandırılmış liste, arama fonksiyonu
-- **Müşteri Formu**: Ekleme/düzenleme/silme işlevselliği
-- **Bottom Navigation**: Mobil uyumlu glassmorphism efektli navigasyon
+### FAZ 3: Multi-User Foundation (Tamamlandı)
+- [x] E-posta/şifre authentication sistemi
+- [x] Kayıt, giriş, çıkış, şifre sıfırlama
+- [x] users tablosu ve JWT token
+- [x] Tüm modellere user_id alanı eklendi
 
-### Tasarım
-- Manrope (başlıklar) + Inter (gövde) fontları
-- Mavi (#0055FF) vurgu rengi
-- Yuvarlatılmış kartlar ve butonlar
-- Mobil öncelikli responsive tasarım
+### FAZ 3.1: Auth Refinement (Tamamlandı)
+- [x] sessionStorage bazlı oturum yönetimi
+- [x] Her tarayıcı açılışında yeniden giriş gerekli
+- [x] PDF raporunda kullanıcı adı ve e-posta
 
-## Prioritized Backlog
+### FAZ 3.2: User-Based Data Isolation (Tamamlandı - 16 Ocak 2026)
+- [x] TÜM backend endpoint'lerine user_id filtresi eklendi
+- [x] Müşteriler, bölgeler, ziyaretler, takipler izole
+- [x] Araçlar, yakıt kayıtları, günlük KM izole
+- [x] Analytics ve PDF rapor izole
+- [x] 28/28 test başarılı
 
-### P0 (Tamamlandı)
-- [x] Bugün sayfası
-- [x] Müşteri kartları ve ziyaret durumu
-- [x] Ziyaret detay sayfası
-- [x] Müşteri yönetimi
+### FAZ 4: Vehicle & Cost Tracking (Tamamlandı)
+- [x] Araç tanımlama (ad, plaka, yakıt tipi)
+- [x] Yakıt kayıtları (litre, tutar, km)
+- [x] Günlük KM takibi
+- [x] Otomatik tüketim ve maliyet hesaplama
+- [x] PDF raporuna günlük araç özeti eklendi
+- [x] Yan menü (drawer) navigasyon
 
-### P1 (Gelecek)
-- [ ] Geçmiş ziyaretler raporu
-- [ ] Haftalık/aylık özet görünümü
-- [ ] Müşteri konumu (harita entegrasyonu)
+## Tech Stack
+- **Backend**: FastAPI (Python) + MongoDB (Motor async)
+- **Frontend**: React + Tailwind CSS + Shadcn UI
+- **Auth**: JWT + bcrypt + passlib
+- **PDF**: FPDF2
+- **Excel**: openpyxl
 
-### P2 (İleride)
-- [ ] PDF/Excel rapor dışa aktarma
-- [ ] Çevrimdışı mod (offline support)
-- [ ] Push bildirimleri
+## Key Data Models
+- **users**: id, email, name, password_hash, role
+- **customers**: id, name, region, phone, address, price_status, visit_days, alerts, user_id
+- **visits**: id, customer_id, date, completed, payment info, duration, rating, user_id
+- **regions**: id, name, description, user_id
+- **follow_ups**: id, customer_id, due_date, status, user_id
+- **vehicles**: id, name, plate, fuel_type, user_id
+- **fuel_records**: id, vehicle_id, liters, amount, current_km, user_id
+- **daily_km_records**: id, vehicle_id, date, start_km, end_km, user_id
 
-## Next Tasks
-1. Geçmiş ziyaretleri görüntüleme ekranı
-2. Haftalık takvim görünümü
-3. Rapor özellikleri
+## Test Credentials
+- **User 1**: test@example.com / test123 (12 müşteri)
+- **User 2**: user2@test.com / test456 (1 müşteri)
+
+## Future Tasks
+Tüm planlanan fazlar tamamlandı. Yeni özellikler için kullanıcı talebi bekleniyor.
+
+### Olası İyileştirmeler
+- Yönetici paneli (tüm kullanıcıları görme)
+- Ekip performans karşılaştırması
+- Harita entegrasyonu
+- Push bildirimleri
+- Çevrimdışı mod (PWA)
