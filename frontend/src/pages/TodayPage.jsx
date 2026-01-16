@@ -313,9 +313,12 @@ export default function TodayPage() {
           <span className="text-sm font-medium text-slate-700">
             {isToday ? "Günlük İlerleme" : `${format(selectedDate, "d MMM", { locale: tr })} İlerlemesi`}
           </span>
-          <span className="text-sm font-semibold text-blue-600">
-            {completedCount}/{totalCount} Ziyaret
-          </span>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-green-600 font-semibold">{visitedCount}✓</span>
+            <span className="text-red-600 font-semibold">{notVisitedCount}✗</span>
+            <span className="text-slate-400">/</span>
+            <span className="font-semibold text-slate-700">{totalCount}</span>
+          </div>
         </div>
         <Progress value={progressPercent} className="h-2" data-testid="progress-bar" />
       </div>
