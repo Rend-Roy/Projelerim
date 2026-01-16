@@ -37,6 +37,7 @@ const dayNameMap = {
 };
 
 export default function TodayPage() {
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
   const [visits, setVisits] = useState({});
   const [followUps, setFollowUps] = useState([]);
