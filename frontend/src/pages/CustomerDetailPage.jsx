@@ -54,8 +54,9 @@ export default function CustomerDetailPage() {
   const [customer, setCustomer] = useState(null);
   const [visit, setVisit] = useState(null);
   
-  // Form states
-  const [completed, setCompleted] = useState(false);
+  // Form states - Yeni status sistemi
+  const [visitStatus, setVisitStatus] = useState("pending"); // pending, visited, not_visited
+  const [completed, setCompleted] = useState(false); // Geriye uyumluluk
   const [visitSkipReason, setVisitSkipReason] = useState("");
   const [paymentCollected, setPaymentCollected] = useState(false);
   const [paymentSkipReason, setPaymentSkipReason] = useState("");
