@@ -51,6 +51,8 @@ export default function PerformancePage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("weekly");
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
   const fetchAnalytics = async () => {
     setLoading(true);
@@ -68,6 +70,34 @@ export default function PerformancePage() {
   useEffect(() => {
     fetchAnalytics();
   }, [period]);
+
+  const handleDownloadPeriodReport = async (reportPeriod) => {
+    setDownloadingPdf(true);
+    try {
+      const response = await axios.get(
+        `${API}/report/pdf/period/${reportPeriod}`,
+        { responseType: "blob" }
+      );
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const periodLabel = reportPeriod === "weekly" ? "haftalik" : "aylik";
+      link.setAttribute("download", `performans_raporu_${periodLabel}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success(`${reportPeriod === "weekly" ? "Haftalık" : "Aylık"} rapor indirildi`);
+      setReportDialogOpen(false);
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      toast.error("PDF indirirken hata oluştu");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat("tr-TR", {
