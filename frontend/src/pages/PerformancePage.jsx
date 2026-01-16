@@ -197,6 +197,60 @@ export default function PerformancePage() {
         </Button>
       </div>
 
+      {/* Dönem Raporu İndir Butonu */}
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full mb-5 h-12 border-blue-200 hover:bg-blue-50 text-blue-700"
+            data-testid="period-report-button"
+          >
+            <FileDown className="w-5 h-5 mr-2" />
+            Dönem Raporu İndir
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileDown className="w-5 h-5 text-blue-600" />
+              Dönem Raporu İndir
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <p className="text-sm text-slate-500">
+              Performans özeti, günlük detaylar ve tahsilat bilgilerini içeren profesyonel PDF raporu indirin.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={() => handleDownloadPeriodReport("weekly")}
+                disabled={downloadingPdf}
+                className="h-16 flex flex-col items-center justify-center gap-1 bg-green-600 hover:bg-green-700"
+                data-testid="download-weekly-report"
+              >
+                <Download className="w-5 h-5" />
+                <span className="text-sm font-medium">Haftalık Rapor</span>
+                <span className="text-xs opacity-80">Bu hafta</span>
+              </Button>
+              <Button
+                onClick={() => handleDownloadPeriodReport("monthly")}
+                disabled={downloadingPdf}
+                className="h-16 flex flex-col items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700"
+                data-testid="download-monthly-report"
+              >
+                <Download className="w-5 h-5" />
+                <span className="text-sm font-medium">Aylık Rapor</span>
+                <span className="text-xs opacity-80">Bu ay</span>
+              </Button>
+            </div>
+            {downloadingPdf && (
+              <p className="text-center text-sm text-slate-500 animate-pulse">
+                Rapor hazırlanıyor...
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         {/* Visit Rate Card */}
