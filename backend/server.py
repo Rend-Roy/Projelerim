@@ -1020,29 +1020,35 @@ async def get_customer_alert_options():
     """Müşteri uyarı seçeneklerini döndür"""
     return {"alerts": CUSTOMER_ALERTS}
 
-# Daily Report Note endpoints
+# Daily Report Note endpoints - FAZ 3.2: user_id filtresi eklendi
 @api_router.get("/daily-note/{date}")
-async def get_daily_note(date: str):
-    note = await db.daily_notes.find_one({"date": date}, {"_id": 0})
+async def get_daily_note(date: str, current_user: dict = Depends(require_auth)):
+    """Gün sonu notunu getir"""
+    note = await db.daily_notes.find_one({"date": date, "user_id": current_user["id"]}, {"_id": 0})
     if not note:
         return {"date": date, "note": ""}
     return note
 
 @api_router.post("/daily-note/{date}")
-async def save_daily_note(date: str, input: DailyReportNoteUpdate):
-    existing = await db.daily_notes.find_one({"date": date})
+async def save_daily_note(date: str, input: DailyReportNoteUpdate, current_user: dict = Depends(require_auth)):
+    """Gün sonu notunu kaydet"""
+    existing = await db.daily_notes.find_one({"date": date, "user_id": current_user["id"]})
     if existing:
-        await db.daily_notes.update_one({"date": date}, {"$set": {"note": input.note}})
+        await db.daily_notes.update_one(
+            {"date": date, "user_id": current_user["id"]}, 
+            {"$set": {"note": input.note}}
+        )
     else:
         note_obj = DailyReportNote(date=date, note=input.note)
         doc = note_obj.model_dump()
+        doc['user_id'] = current_user["id"]
         doc['created_at'] = doc['created_at'].isoformat()
         await db.daily_notes.insert_one(doc)
     return {"message": "Not kaydedildi", "date": date}
 
-# Excel Upload endpoint
+# Excel Upload endpoint - FAZ 3.2: user_id filtresi eklendi
 @api_router.post("/customers/upload")
-async def upload_customers_excel(file: UploadFile = File(...)):
+async def upload_customers_excel(file: UploadFile = File(...), current_user: dict = Depends(require_auth)):
     """
     Excel dosyasından toplu müşteri yükleme.
     Gerekli sütunlar: Müşteri Adı, Bölge
