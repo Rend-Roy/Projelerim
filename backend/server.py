@@ -356,6 +356,68 @@ class DailyKmRecordUpdate(BaseModel):
     end_km: Optional[float] = None
 
 # =============================================================================
+# FAZ 5: Ürün Kataloğu Modelleri
+# =============================================================================
+
+# Birim seçenekleri
+PRODUCT_UNITS = ["Adet", "Kg", "Lt", "Paket", "Kutu", "Koli", "Metre", "M²", "M³"]
+
+class Category(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    name: str
+    description: Optional[str] = None
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CategoryCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    is_active: bool = True
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class Product(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    product_code: str  # UNIQUE per user
+    name: str
+    category: str  # Kategori adı
+    description: Optional[str] = None
+    base_price: float = 0  # Sabit fiyat
+    unit: str = "Adet"  # Birim
+    images: List[str] = []  # Cloudinary URL'leri
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ProductCreate(BaseModel):
+    product_code: str
+    name: str
+    category: str
+    description: Optional[str] = None
+    base_price: float = 0
+    unit: str = "Adet"
+    images: List[str] = []
+    is_active: bool = True
+
+class ProductUpdate(BaseModel):
+    product_code: Optional[str] = None
+    name: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    base_price: Optional[float] = None
+    unit: Optional[str] = None
+    images: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+
+# =============================================================================
 # FAZ 3.0: Authentication Endpoints
 # =============================================================================
 
