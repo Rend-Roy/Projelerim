@@ -1617,6 +1617,174 @@ def main():
     # Test deleting the customer (cleanup)
     tester.test_delete_customer(customer_id)
 
+    # ===== FAZ 4: VEHICLE, FUEL AND DAILY KM TRACKING TESTS =====
+    print("\n🚗 Testing FAZ 4: Vehicle, Fuel and Daily KM Tracking...")
+    
+    # Test fuel types
+    print("\n⛽ Testing Fuel Types...")
+    fuel_types_success, fuel_types_response = tester.test_get_fuel_types()
+    if fuel_types_success:
+        if tester.validate_fuel_types_response(fuel_types_response):
+            print("✅ Fuel types endpoint working correctly")
+    
+    # Test vehicle CRUD operations
+    print("\n🚗 Testing Vehicle CRUD Operations...")
+    
+    # Get existing vehicles
+    vehicles_success, vehicles_response = tester.test_get_vehicles()
+    if vehicles_success:
+        print(f"📊 Found {len(vehicles_response)} existing vehicles")
+    
+    # Test creating a vehicle
+    create_vehicle_success, create_vehicle_response = tester.test_create_vehicle()
+    vehicle_id = None
+    if create_vehicle_success:
+        if tester.validate_vehicle_response(create_vehicle_response, "create"):
+            vehicle_id = create_vehicle_response.get('id')
+            print(f"✅ Vehicle created successfully with ID: {vehicle_id}")
+    
+    if vehicle_id:
+        # Test getting vehicle by ID
+        get_vehicle_success, get_vehicle_response = tester.test_get_vehicle_by_id(vehicle_id)
+        if get_vehicle_success:
+            if tester.validate_vehicle_response(get_vehicle_response, "get"):
+                print("✅ Get vehicle by ID working correctly")
+        
+        # Test updating vehicle
+        update_vehicle_success, update_vehicle_response = tester.test_update_vehicle(vehicle_id)
+        if update_vehicle_success:
+            if tester.validate_vehicle_response(update_vehicle_response, "update"):
+                print("✅ Vehicle update working correctly")
+        
+        # Test getting active vehicle
+        active_vehicle_success, active_vehicle_response = tester.test_get_active_vehicle()
+        if active_vehicle_success:
+            if active_vehicle_response and 'id' in active_vehicle_response:
+                print("✅ Get active vehicle working correctly")
+            elif active_vehicle_response is None:
+                print("⚠️ No active vehicle found (this is acceptable)")
+            else:
+                print("❌ Invalid active vehicle response")
+    
+    # Test fuel records
+    print("\n⛽ Testing Fuel Records...")
+    
+    if vehicle_id:
+        # Test creating fuel record
+        create_fuel_success, create_fuel_response = tester.test_create_fuel_record(vehicle_id)
+        fuel_record_id = None
+        if create_fuel_success:
+            if tester.validate_fuel_record_response(create_fuel_response, "create"):
+                fuel_record_id = create_fuel_response.get('id')
+                print("✅ Fuel record created successfully")
+                
+                # Check calculated fields
+                distance = create_fuel_response.get('distance_since_last')
+                consumption = create_fuel_response.get('consumption_per_100km')
+                cost_per_km = create_fuel_response.get('cost_per_km')
+                print(f"📊 Calculated fields - Distance: {distance}, Consumption: {consumption}, Cost/km: {cost_per_km}")
+        
+        # Test getting fuel records
+        get_fuel_success, get_fuel_response = tester.test_get_fuel_records(vehicle_id)
+        if get_fuel_success:
+            print(f"📊 Found {len(get_fuel_response)} fuel records for vehicle")
+        
+        # Test getting all fuel records
+        get_all_fuel_success, get_all_fuel_response = tester.test_get_fuel_records()
+        if get_all_fuel_success:
+            print(f"📊 Found {len(get_all_fuel_response)} total fuel records")
+        
+        # Test deleting fuel record
+        if fuel_record_id:
+            delete_fuel_success, delete_fuel_response = tester.test_delete_fuel_record(fuel_record_id)
+            if delete_fuel_success:
+                if tester.validate_fuel_record_response(delete_fuel_response, "delete"):
+                    print("✅ Fuel record deletion working correctly")
+    
+    # Test daily KM records
+    print("\n📏 Testing Daily KM Records...")
+    
+    if vehicle_id:
+        # Test creating daily KM record
+        create_km_success, create_km_response = tester.test_create_daily_km_record(vehicle_id)
+        km_record_id = None
+        if create_km_success:
+            if tester.validate_daily_km_response(create_km_response, "create"):
+                km_record_id = create_km_response.get('id')
+                print("✅ Daily KM record created successfully")
+                
+                # Check calculated fields
+                daily_km = create_km_response.get('daily_km')
+                avg_cost = create_km_response.get('avg_cost_per_km')
+                daily_cost = create_km_response.get('daily_cost')
+                print(f"📊 Calculated fields - Daily KM: {daily_km}, Avg Cost/km: {avg_cost}, Daily Cost: {daily_cost}")
+        
+        # Test updating daily KM record
+        if km_record_id:
+            update_km_success, update_km_response = tester.test_update_daily_km_record(km_record_id)
+            if update_km_success:
+                if tester.validate_daily_km_response(update_km_response, "update"):
+                    print("✅ Daily KM record update working correctly")
+        
+        # Test getting daily KM records
+        get_km_success, get_km_response = tester.test_get_daily_km_records(vehicle_id)
+        if get_km_success:
+            print(f"📊 Found {len(get_km_response)} daily KM records for vehicle")
+        
+        # Test getting today's KM record
+        today_km_success, today_km_response = tester.test_get_today_km()
+        if today_km_success:
+            if today_km_response:
+                print("✅ Today's KM record retrieved successfully")
+            else:
+                print("⚠️ No KM record for today (this is acceptable)")
+    
+    # Test vehicle stats
+    print("\n📊 Testing Vehicle Statistics...")
+    
+    if vehicle_id:
+        stats_success, stats_response = tester.test_get_vehicle_stats(vehicle_id)
+        if stats_success:
+            if tester.validate_vehicle_stats_response(stats_response):
+                print("✅ Vehicle statistics working correctly")
+                
+                # Print key stats
+                total_cost = stats_response.get('total_fuel_cost', 0)
+                monthly_cost = stats_response.get('monthly_fuel_cost', 0)
+                total_liters = stats_response.get('total_liters', 0)
+                avg_cost_km = stats_response.get('avg_cost_per_km', 0)
+                avg_consumption = stats_response.get('avg_consumption_per_100km', 0)
+                
+                print(f"📊 Vehicle Stats - Total Cost: {total_cost} TL, Monthly: {monthly_cost} TL")
+                print(f"📊 Total Liters: {total_liters}, Avg Cost/km: {avg_cost_km}, Avg Consumption: {avg_consumption}")
+    
+    # Test backward compatibility
+    print("\n🔄 Testing FAZ 4 Backward Compatibility...")
+    
+    # Test that existing endpoints still work
+    compat_customers_success, _ = tester.test_get_all_customers()
+    if compat_customers_success:
+        print("✅ Customers endpoint still working")
+    
+    compat_visits_success, _ = tester.test_get_visits()
+    if compat_visits_success:
+        print("✅ Visits endpoint still working")
+    
+    compat_follow_ups_success, _ = tester.test_get_follow_ups_by_date()
+    if compat_follow_ups_success:
+        print("✅ Follow-ups endpoint still working")
+    
+    compat_analytics_success, _ = tester.test_analytics_performance_weekly()
+    if compat_analytics_success:
+        print("✅ Analytics performance endpoint still working")
+    
+    # Clean up test vehicle
+    if vehicle_id:
+        delete_vehicle_success, delete_vehicle_response = tester.test_delete_vehicle(vehicle_id)
+        if delete_vehicle_success:
+            if tester.validate_vehicle_response(delete_vehicle_response, "delete"):
+                print("✅ Vehicle deletion working correctly")
+
     # Print final results
     print("\n" + "=" * 70)
     print(f"📊 Final Results: {tester.tests_passed}/{tester.tests_run} tests passed")
