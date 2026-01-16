@@ -97,6 +97,9 @@ export default function CustomerDetailPage() {
       setVisit(visitRes.data);
       
       // Set form values from visit data
+      // Yeni status sistemi
+      const status = visitRes.data.status || (visitRes.data.completed ? "visited" : (visitRes.data.visit_skip_reason ? "not_visited" : "pending"));
+      setVisitStatus(status);
       setCompleted(visitRes.data.completed || false);
       setVisitSkipReason(visitRes.data.visit_skip_reason || "");
       setPaymentCollected(visitRes.data.payment_collected || false);
