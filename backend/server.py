@@ -727,10 +727,16 @@ async def delete_customer(customer_id: str, current_user: dict = Depends(require
     await db.follow_ups.delete_many({"customer_id": customer_id, "user_id": current_user["id"]})
     return {"message": "Müşteri silindi"}
 
-# Follow-Up endpoints
+# Follow-Up endpoints - FAZ 3.2: user_id filtresi eklendi
 @api_router.get("/follow-ups")
-async def get_follow_ups(date: Optional[str] = None, customer_id: Optional[str] = None, status: Optional[str] = None):
-    query = {}
+async def get_follow_ups(
+    date: Optional[str] = None, 
+    customer_id: Optional[str] = None, 
+    status: Optional[str] = None,
+    current_user: dict = Depends(require_auth)
+):
+    """Kullanıcının takiplerini listele"""
+    query = {"user_id": current_user["id"]}
     if date:
         query["due_date"] = date
     if customer_id:
@@ -750,11 +756,13 @@ async def get_follow_ups(date: Optional[str] = None, customer_id: Optional[str] 
     return follow_ups
 
 @api_router.get("/follow-ups/today")
-async def get_today_follow_ups():
+async def get_today_follow_ups(current_user: dict = Depends(require_auth)):
+    """Bugünkü ve gecikmiş takipleri getir"""
     today = datetime.now(timezone.utc).date().isoformat()
     
-    # Get today's and overdue follow-ups
+    # Get today's and overdue follow-ups (only user's)
     follow_ups = await db.follow_ups.find({
+        "user_id": current_user["id"],
         "$or": [
             {"due_date": today},
             {"due_date": {"$lt": today}, "status": {"$ne": "done"}}
@@ -767,10 +775,10 @@ async def get_today_follow_ups():
             fu["status"] = "late"
             await db.follow_ups.update_one({"id": fu["id"]}, {"$set": {"status": "late"}})
     
-    # Get customer info for each follow-up
+    # Get customer info for each follow-up (only user's customers)
     result = []
     for fu in follow_ups:
-        customer = await db.customers.find_one({"id": fu["customer_id"]}, {"_id": 0})
+        customer = await db.customers.find_one({"id": fu["customer_id"], "user_id": current_user["id"]}, {"_id": 0})
         if customer:
             fu["customer"] = {"name": customer["name"], "region": customer["region"]}
         result.append(fu)
@@ -778,28 +786,31 @@ async def get_today_follow_ups():
     return result
 
 @api_router.get("/follow-ups/{follow_up_id}")
-async def get_follow_up(follow_up_id: str):
-    fu = await db.follow_ups.find_one({"id": follow_up_id}, {"_id": 0})
+async def get_follow_up(follow_up_id: str, current_user: dict = Depends(require_auth)):
+    """Takip detayını getir"""
+    fu = await db.follow_ups.find_one({"id": follow_up_id, "user_id": current_user["id"]}, {"_id": 0})
     if not fu:
         raise HTTPException(status_code=404, detail="Takip bulunamadı")
     return fu
 
 @api_router.post("/follow-ups", response_model=FollowUp)
-async def create_follow_up(input: FollowUpCreate):
-    # Verify customer exists
-    customer = await db.customers.find_one({"id": input.customer_id})
+async def create_follow_up(input: FollowUpCreate, current_user: dict = Depends(require_auth)):
+    """Yeni takip oluştur"""
+    # Verify customer exists and belongs to user
+    customer = await db.customers.find_one({"id": input.customer_id, "user_id": current_user["id"]})
     if not customer:
         raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
     
-    fu_obj = FollowUp(**input.model_dump())
+    fu_obj = FollowUp(**input.model_dump(), user_id=current_user["id"])
     doc = fu_obj.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
     await db.follow_ups.insert_one(doc)
     return fu_obj
 
 @api_router.put("/follow-ups/{follow_up_id}")
-async def update_follow_up(follow_up_id: str, input: FollowUpUpdate):
-    fu = await db.follow_ups.find_one({"id": follow_up_id}, {"_id": 0})
+async def update_follow_up(follow_up_id: str, input: FollowUpUpdate, current_user: dict = Depends(require_auth)):
+    """Takip güncelle"""
+    fu = await db.follow_ups.find_one({"id": follow_up_id, "user_id": current_user["id"]}, {"_id": 0})
     if not fu:
         raise HTTPException(status_code=404, detail="Takip bulunamadı")
     
@@ -810,35 +821,41 @@ async def update_follow_up(follow_up_id: str, input: FollowUpUpdate):
         update_data["completed_at"] = datetime.now(timezone.utc).isoformat()
     
     if update_data:
-        await db.follow_ups.update_one({"id": follow_up_id}, {"$set": update_data})
+        await db.follow_ups.update_one({"id": follow_up_id, "user_id": current_user["id"]}, {"$set": update_data})
     
-    updated = await db.follow_ups.find_one({"id": follow_up_id}, {"_id": 0})
+    updated = await db.follow_ups.find_one({"id": follow_up_id, "user_id": current_user["id"]}, {"_id": 0})
     return updated
 
 @api_router.delete("/follow-ups/{follow_up_id}")
-async def delete_follow_up(follow_up_id: str):
-    result = await db.follow_ups.delete_one({"id": follow_up_id})
-    if result.deleted_count == 0:
+async def delete_follow_up(follow_up_id: str, current_user: dict = Depends(require_auth)):
+    """Takip sil"""
+    # Önce takibin bu kullanıcıya ait olduğunu doğrula
+    fu = await db.follow_ups.find_one({"id": follow_up_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not fu:
         raise HTTPException(status_code=404, detail="Takip bulunamadı")
+    
+    await db.follow_ups.delete_one({"id": follow_up_id, "user_id": current_user["id"]})
     return {"message": "Takip silindi"}
 
 @api_router.post("/follow-ups/{follow_up_id}/complete")
-async def complete_follow_up(follow_up_id: str):
-    fu = await db.follow_ups.find_one({"id": follow_up_id}, {"_id": 0})
+async def complete_follow_up(follow_up_id: str, current_user: dict = Depends(require_auth)):
+    """Takibi tamamla"""
+    fu = await db.follow_ups.find_one({"id": follow_up_id, "user_id": current_user["id"]}, {"_id": 0})
     if not fu:
         raise HTTPException(status_code=404, detail="Takip bulunamadı")
     
     await db.follow_ups.update_one(
-        {"id": follow_up_id}, 
+        {"id": follow_up_id, "user_id": current_user["id"]}, 
         {"$set": {"status": "done", "completed_at": datetime.now(timezone.utc).isoformat()}}
     )
     return {"message": "Takip tamamlandı"}
 
-# Get customers for today based on visit_days
+# Get customers for today based on visit_days - FAZ 3.2: user_id filtresi eklendi
 @api_router.get("/customers/today/{day_name}")
-async def get_today_customers(day_name: str):
+async def get_today_customers(day_name: str, current_user: dict = Depends(require_auth)):
+    """Bugün ziyaret edilecek müşterileri getir"""
     customers = await db.customers.find(
-        {"visit_days": day_name}, 
+        {"visit_days": day_name, "user_id": current_user["id"]}, 
         {"_id": 0}
     ).to_list(1000)
     for c in customers:
@@ -846,10 +863,15 @@ async def get_today_customers(day_name: str):
             c['created_at'] = datetime.fromisoformat(c['created_at'])
     return customers
 
-# Visit endpoints
+# Visit endpoints - FAZ 3.2: user_id filtresi eklendi
 @api_router.get("/visits", response_model=List[Visit])
-async def get_visits(date: Optional[str] = None, customer_id: Optional[str] = None):
-    query = {}
+async def get_visits(
+    date: Optional[str] = None, 
+    customer_id: Optional[str] = None,
+    current_user: dict = Depends(require_auth)
+):
+    """Kullanıcının ziyaretlerini listele"""
+    query = {"user_id": current_user["id"]}
     if date:
         query["date"] = date
     if customer_id:
@@ -864,8 +886,9 @@ async def get_visits(date: Optional[str] = None, customer_id: Optional[str] = No
     return visits
 
 @api_router.get("/visits/{visit_id}", response_model=Visit)
-async def get_visit(visit_id: str):
-    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+async def get_visit(visit_id: str, current_user: dict = Depends(require_auth)):
+    """Ziyaret detayını getir"""
+    visit = await db.visits.find_one({"id": visit_id, "user_id": current_user["id"]}, {"_id": 0})
     if not visit:
         raise HTTPException(status_code=404, detail="Ziyaret bulunamadı")
     if isinstance(visit.get('created_at'), str):
@@ -875,9 +898,19 @@ async def get_visit(visit_id: str):
     return visit
 
 @api_router.post("/visits", response_model=Visit)
-async def create_or_get_visit(customer_id: str, date: str):
-    # Check if visit already exists
-    existing = await db.visits.find_one({"customer_id": customer_id, "date": date}, {"_id": 0})
+async def create_or_get_visit(customer_id: str, date: str, current_user: dict = Depends(require_auth)):
+    """Ziyaret oluştur veya mevcut ziyareti getir"""
+    # Müşterinin bu kullanıcıya ait olduğunu doğrula
+    customer = await db.customers.find_one({"id": customer_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
+    
+    # Check if visit already exists for this user
+    existing = await db.visits.find_one({
+        "customer_id": customer_id, 
+        "date": date, 
+        "user_id": current_user["id"]
+    }, {"_id": 0})
     if existing:
         if isinstance(existing.get('created_at'), str):
             existing['created_at'] = datetime.fromisoformat(existing['created_at'])
@@ -886,7 +919,7 @@ async def create_or_get_visit(customer_id: str, date: str):
         return existing
     
     # Create new visit
-    visit_obj = Visit(customer_id=customer_id, date=date)
+    visit_obj = Visit(customer_id=customer_id, date=date, user_id=current_user["id"])
     doc = visit_obj.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
     if doc.get('completed_at'):
@@ -895,8 +928,9 @@ async def create_or_get_visit(customer_id: str, date: str):
     return visit_obj
 
 @api_router.put("/visits/{visit_id}", response_model=Visit)
-async def update_visit(visit_id: str, input: VisitUpdate):
-    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+async def update_visit(visit_id: str, input: VisitUpdate, current_user: dict = Depends(require_auth)):
+    """Ziyaret güncelle"""
+    visit = await db.visits.find_one({"id": visit_id, "user_id": current_user["id"]}, {"_id": 0})
     if not visit:
         raise HTTPException(status_code=404, detail="Ziyaret bulunamadı")
     
@@ -913,9 +947,9 @@ async def update_visit(visit_id: str, input: VisitUpdate):
         update_data['completed_at'] = datetime.now(timezone.utc).isoformat()
     
     if update_data:
-        await db.visits.update_one({"id": visit_id}, {"$set": update_data})
+        await db.visits.update_one({"id": visit_id, "user_id": current_user["id"]}, {"$set": update_data})
     
-    updated = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    updated = await db.visits.find_one({"id": visit_id, "user_id": current_user["id"]}, {"_id": 0})
     if isinstance(updated.get('created_at'), str):
         updated['created_at'] = datetime.fromisoformat(updated['created_at'])
     if isinstance(updated.get('completed_at'), str):
@@ -926,11 +960,11 @@ async def update_visit(visit_id: str, input: VisitUpdate):
         updated['ended_at'] = datetime.fromisoformat(updated['ended_at'])
     return updated
 
-# FAZ 2: Ziyaret Süresi Takibi Endpoint'leri
+# FAZ 2: Ziyaret Süresi Takibi Endpoint'leri - FAZ 3.2: user_id filtresi eklendi
 @api_router.post("/visits/{visit_id}/start")
-async def start_visit(visit_id: str):
+async def start_visit(visit_id: str, current_user: dict = Depends(require_auth)):
     """Ziyareti başlat - started_at zamanını kaydet"""
-    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    visit = await db.visits.find_one({"id": visit_id, "user_id": current_user["id"]}, {"_id": 0})
     if not visit:
         raise HTTPException(status_code=404, detail="Ziyaret bulunamadı")
     
@@ -939,16 +973,16 @@ async def start_visit(visit_id: str):
     
     now = datetime.now(timezone.utc)
     await db.visits.update_one(
-        {"id": visit_id}, 
+        {"id": visit_id, "user_id": current_user["id"]}, 
         {"$set": {"started_at": now.isoformat()}}
     )
     
     return {"message": "Ziyaret başlatıldı", "started_at": now.isoformat()}
 
 @api_router.post("/visits/{visit_id}/end")
-async def end_visit(visit_id: str):
+async def end_visit(visit_id: str, current_user: dict = Depends(require_auth)):
     """Ziyareti bitir - ended_at zamanını kaydet ve süreyi hesapla"""
-    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    visit = await db.visits.find_one({"id": visit_id, "user_id": current_user["id"]}, {"_id": 0})
     if not visit:
         raise HTTPException(status_code=404, detail="Ziyaret bulunamadı")
     
@@ -967,7 +1001,7 @@ async def end_visit(visit_id: str):
     duration = int((now - started_at).total_seconds() / 60)
     
     await db.visits.update_one(
-        {"id": visit_id}, 
+        {"id": visit_id, "user_id": current_user["id"]}, 
         {"$set": {
             "ended_at": now.isoformat(),
             "duration_minutes": duration
