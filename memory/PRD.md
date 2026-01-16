@@ -81,6 +81,23 @@ Satış temsilcileri için çok kullanıcılı, günlük müşteri ziyaretlerini
 - [x] Performans sayfasına "Dönem Raporu İndir" butonu
 - [x] Haftalık/Aylık seçim dialog'u
 
+### FAZ 5: Ürün Kataloğu & Saha Sunum Modülü (Tamamlandı - 17 Ocak 2026)
+- [x] Yan menüye "Ürün Kataloğu", "Kategoriler", "Toplu Görsel Yükle" eklendi
+- [x] Backend: Category CRUD endpoint'leri
+- [x] Backend: Product CRUD endpoint'leri (sayfalama, filtreleme, arama)
+- [x] Backend: product_code unique kontrolü
+- [x] Backend: Kategori yoksa otomatik oluşturma
+- [x] Backend: Excel ile toplu ürün yükleme
+- [x] Backend: Cloudinary entegrasyonu (görsel yükleme)
+- [x] Backend: Toplu görsel eşleştirme (product_code bazlı)
+- [x] Frontend: ProductsPage - Ürün grid/liste görünümü
+- [x] Frontend: ProductDetailPage - Görsel slider, düzenleme
+- [x] Frontend: CategoriesPage - Kategori yönetimi
+- [x] Frontend: BulkImageUploadPage - Toplu görsel yükleme
+- [x] Frontend: "Müşteriye Göster" modu (tam ekran sunum)
+- [x] 23/23 backend test başarılı
+- [x] Mevcut FAZ 1-4 özellikleri regresyon testi başarılı
+
 ## Tech Stack
 - **Backend**: FastAPI (Python) + MongoDB (Motor async)
 - **Frontend**: React + Tailwind CSS + Shadcn UI
