@@ -42,10 +42,12 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <LogIn className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Satış Takip</h1>
+          <img 
+            src="/logo.svg" 
+            alt="Saha Yönetim Logo" 
+            className="w-20 h-20 mx-auto mb-4"
+          />
+          <h1 className="text-2xl font-bold text-slate-900">Saha Yönetim</h1>
           <p className="text-slate-500 mt-1">Hesabınıza giriş yapın</p>
         </div>
 
