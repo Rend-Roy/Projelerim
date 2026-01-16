@@ -2810,6 +2810,8 @@ async def create_category(
     doc["created_at"] = doc["created_at"].isoformat()
     await db.categories.insert_one(doc)
     
+    # _id'yi kaldır (MongoDB ekledi)
+    doc.pop("_id", None)
     return {"message": "Kategori oluşturuldu", "category": doc}
 
 @api_router.put("/categories/{category_id}")
