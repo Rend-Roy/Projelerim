@@ -53,10 +53,12 @@ export default function MobileLayout({ children }) {
         
         {/* Center - Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <CalendarCheck className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-semibold text-slate-900">Satış Takip</span>
+          <img 
+            src="/logo.svg" 
+            alt="Saha Yönetim Logo" 
+            className="w-8 h-8"
+          />
+          <span className="font-semibold text-slate-900">Saha Yönetim</span>
         </div>
         
         {/* Right - User Menu */}
