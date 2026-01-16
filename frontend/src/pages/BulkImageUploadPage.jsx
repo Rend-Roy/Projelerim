@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import MobileLayout from "@/components/MobileLayout";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const CLOUDINARY_UPLOAD_URL = "https://api.cloudinary.com/v1_1";
 
 export default function BulkImageUploadPage() {
   const fileInputRef = useRef(null);
@@ -19,21 +18,6 @@ export default function BulkImageUploadPage() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState(null);
-  
-  // Cloudinary credentials (fetched from backend)
-  const [cloudinaryConfig, setCloudinaryConfig] = useState(null);
-
-  const fetchCloudinarySignature = async () => {
-    try {
-      const res = await axios.get(`${API}/cloudinary/signature?folder=products`);
-      setCloudinaryConfig(res.data);
-      return res.data;
-    } catch (error) {
-      console.error("Error getting Cloudinary signature:", error);
-      toast.error("Cloudinary yapılandırması alınamadı");
-      return null;
-    }
-  };
 
   const handleFileSelect = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
@@ -49,8 +33,6 @@ export default function BulkImageUploadPage() {
     
     // Parse product_code from filename
     const parsedFiles = imageFiles.map(file => {
-      // Remove extension and parse product_code
-      // Supports: ABC123.jpg, ABC123_1.jpg, ABC123_2.png
       const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
       const productCode = nameWithoutExt.split("_")[0];
       
@@ -58,9 +40,7 @@ export default function BulkImageUploadPage() {
         file,
         name: file.name,
         productCode,
-        status: "pending", // pending, uploading, success, error
-        url: null,
-        error: null
+        status: "pending"
       };
     });
     
@@ -78,30 +58,6 @@ export default function BulkImageUploadPage() {
     setProgress(0);
   };
 
-  const uploadToCloudinary = async (file, config) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("api_key", config.api_key);
-    formData.append("timestamp", config.timestamp);
-    formData.append("signature", config.signature);
-    formData.append("folder", config.folder);
-    
-    const response = await fetch(
-      `${CLOUDINARY_UPLOAD_URL}/${config.cloud_name}/image/upload`,
-      {
-        method: "POST",
-        body: formData
-      }
-    );
-    
-    if (!response.ok) {
-      throw new Error("Cloudinary upload failed");
-    }
-    
-    const data = await response.json();
-    return data.secure_url;
-  };
-
   const handleUpload = async () => {
     if (files.length === 0) {
       toast.error("Lütfen görsel seçin");
@@ -111,67 +67,56 @@ export default function BulkImageUploadPage() {
     setUploading(true);
     setProgress(0);
     
-    // Get fresh Cloudinary signature
-    const config = await fetchCloudinarySignature();
-    if (!config) {
+    // FormData ile tüm dosyaları backend'e gönder
+    const formData = new FormData();
+    files.forEach(fileObj => {
+      formData.append("files", fileObj.file);
+    });
+
+    try {
+      // Tüm dosyaları tek seferde yükle
+      setProgress(50);
+      
+      const response = await axios.post(`${API}/upload-images-bulk`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setProgress(Math.min(percentCompleted, 90));
+        }
+      });
+      
+      setProgress(100);
+      setResults(response.data);
+      
+      // Dosya durumlarını güncelle
+      const matchedCodes = new Set(response.data.matched?.map(m => m.product_code) || []);
+      const unmatchedCodes = new Set(response.data.unmatched?.map(u => u.product_code) || []);
+      const errorFiles = new Set(response.data.errors?.map(e => e.file) || []);
+      
+      setFiles(prev => prev.map(f => ({
+        ...f,
+        status: errorFiles.has(f.name) ? "error" : 
+                matchedCodes.has(f.productCode) ? "success" :
+                unmatchedCodes.has(f.productCode) ? "warning" : "success"
+      })));
+      
+      if (response.data.matched_count > 0) {
+        toast.success(`${response.data.matched_count} görsel eşleştirildi`);
+      }
+      if (response.data.unmatched_count > 0) {
+        toast.warning(`${response.data.unmatched_count} görsel eşleştirilemedi`);
+      }
+      if (response.data.error_count > 0) {
+        toast.error(`${response.data.error_count} görsel yüklenemedi`);
+      }
+      
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error(error.response?.data?.detail || "Yükleme hatası");
+      setFiles(prev => prev.map(f => ({ ...f, status: "error" })));
+    } finally {
       setUploading(false);
-      return;
     }
-
-    const uploadedImages = [];
-    const totalFiles = files.length;
-    
-    // Upload each file to Cloudinary
-    for (let i = 0; i < files.length; i++) {
-      const fileObj = files[i];
-      
-      // Update status to uploading
-      setFiles(prev => prev.map((f, idx) => 
-        idx === i ? { ...f, status: "uploading" } : f
-      ));
-      
-      try {
-        const url = await uploadToCloudinary(fileObj.file, config);
-        
-        // Update status to success
-        setFiles(prev => prev.map((f, idx) => 
-          idx === i ? { ...f, status: "success", url } : f
-        ));
-        
-        uploadedImages.push({
-          product_code: fileObj.productCode,
-          url
-        });
-        
-      } catch (error) {
-        console.error("Upload error:", error);
-        setFiles(prev => prev.map((f, idx) => 
-          idx === i ? { ...f, status: "error", error: "Yükleme hatası" } : f
-        ));
-      }
-      
-      setProgress(((i + 1) / totalFiles) * 100);
-    }
-
-    // Match images with products in backend
-    if (uploadedImages.length > 0) {
-      try {
-        const matchRes = await axios.post(`${API}/products/match-images`, uploadedImages);
-        setResults(matchRes.data);
-        
-        if (matchRes.data.matched_count > 0) {
-          toast.success(`${matchRes.data.matched_count} görsel eşleştirildi`);
-        }
-        if (matchRes.data.unmatched_count > 0) {
-          toast.warning(`${matchRes.data.unmatched_count} görsel eşleştirilemedi`);
-        }
-      } catch (error) {
-        console.error("Match error:", error);
-        toast.error("Eşleştirme hatası");
-      }
-    }
-
-    setUploading(false);
   };
 
   return (
@@ -185,8 +130,8 @@ export default function BulkImageUploadPage() {
           </h3>
           <ul className="text-sm text-blue-700 space-y-1">
             <li>• Dosya adı = Ürün Kodu olmalı</li>
-            <li>• Örnek: <code className="bg-blue-100 px-1 rounded">ABC123.jpg</code></li>
-            <li>• Çoklu görsel: <code className="bg-blue-100 px-1 rounded">ABC123_1.jpg</code>, <code className="bg-blue-100 px-1 rounded">ABC123_2.jpg</code></li>
+            <li>• Örnek: <code className="bg-blue-100 px-1 rounded">SNC000001.jpg</code></li>
+            <li>• Çoklu görsel: <code className="bg-blue-100 px-1 rounded">SNC000001_1.jpg</code>, <code className="bg-blue-100 px-1 rounded">SNC000001_2.jpg</code></li>
             <li>• Desteklenen formatlar: JPG, PNG, WEBP</li>
           </ul>
         </div>
@@ -234,15 +179,15 @@ export default function BulkImageUploadPage() {
                     key={idx}
                     className={`flex items-center gap-3 p-2 rounded-lg text-sm ${
                       fileObj.status === "success" ? "bg-green-50" :
+                      fileObj.status === "warning" ? "bg-orange-50" :
                       fileObj.status === "error" ? "bg-red-50" :
-                      fileObj.status === "uploading" ? "bg-blue-50" :
                       "bg-slate-50"
                     }`}
                   >
-                    {fileObj.status === "uploading" ? (
-                      <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                    ) : fileObj.status === "success" ? (
+                    {fileObj.status === "success" ? (
                       <CheckCircle className="w-4 h-4 text-green-600" />
+                    ) : fileObj.status === "warning" ? (
+                      <AlertCircle className="w-4 h-4 text-orange-600" />
                     ) : fileObj.status === "error" ? (
                       <AlertCircle className="w-4 h-4 text-red-600" />
                     ) : (
@@ -303,6 +248,17 @@ export default function BulkImageUploadPage() {
         {/* Results */}
         {results && (
           <div className="space-y-3">
+            {/* Summary */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <h3 className="font-semibold text-slate-900 mb-2">Özet</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="text-green-600">✓ Yüklenen: {results.uploaded_count}</div>
+                <div className="text-green-600">✓ Eşleşen: {results.matched_count}</div>
+                <div className="text-orange-600">⚠ Eşleşmeyen: {results.unmatched_count}</div>
+                <div className="text-red-600">✗ Hatalı: {results.error_count}</div>
+              </div>
+            </div>
+            
             {/* Matched */}
             {results.matched?.length > 0 && (
               <div className="bg-green-50 border border-green-100 rounded-xl p-4">
@@ -310,7 +266,7 @@ export default function BulkImageUploadPage() {
                   <CheckCircle className="w-5 h-5" />
                   Eşleşen ({results.matched_count})
                 </h3>
-                <div className="space-y-1 text-sm text-green-700">
+                <div className="space-y-1 text-sm text-green-700 max-h-40 overflow-y-auto">
                   {results.matched.map((item, idx) => (
                     <p key={idx}>
                       ✓ {item.product_code} → {item.product_name}
@@ -327,10 +283,27 @@ export default function BulkImageUploadPage() {
                   <AlertCircle className="w-5 h-5" />
                   Eşleşmeyen ({results.unmatched_count})
                 </h3>
-                <div className="space-y-1 text-sm text-orange-700">
+                <div className="space-y-1 text-sm text-orange-700 max-h-40 overflow-y-auto">
                   {results.unmatched.map((item, idx) => (
                     <p key={idx}>
                       ✗ {item.product_code} - {item.reason}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Errors */}
+            {results.errors?.length > 0 && (
+              <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                <h3 className="font-semibold text-red-900 mb-2 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5" />
+                  Hatalar ({results.error_count})
+                </h3>
+                <div className="space-y-1 text-sm text-red-700 max-h-40 overflow-y-auto">
+                  {results.errors.map((item, idx) => (
+                    <p key={idx}>
+                      ✗ {item.file} - {item.error}
                     </p>
                   ))}
                 </div>
