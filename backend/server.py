@@ -1132,6 +1132,8 @@ async def upload_customers_excel(file: UploadFile = File(...), current_user: dic
                 "address": str(row[col_indices.get('address', -1)]).strip() if col_indices.get('address') is not None and row[col_indices['address']] else None,
                 "price_status": "Standart",
                 "visit_days": [],
+                "alerts": [],
+                "user_id": current_user["id"],  # FAZ 3.2: user_id eklendi
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
             
@@ -1167,9 +1169,14 @@ async def upload_customers_excel(file: UploadFile = File(...), current_user: dic
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Dosya işlenirken hata: {str(e)}")
 
-# Analytics endpoints
+# Analytics endpoints - FAZ 3.2: user_id filtresi eklendi
 @api_router.get("/analytics/performance")
-async def get_performance_analytics(period: str = "weekly", start_date: str = None, end_date: str = None):
+async def get_performance_analytics(
+    period: str = "weekly", 
+    start_date: str = None, 
+    end_date: str = None,
+    current_user: dict = Depends(require_auth)
+):
     """
     Get performance analytics for a given period.
     period: 'weekly' or 'monthly'
@@ -1201,16 +1208,18 @@ async def get_performance_analytics(period: str = "weekly", start_date: str = No
     if end_date:
         end = end_date
     
-    # Get all customers
-    all_customers = await db.customers.find({}, {"_id": 0}).to_list(1000)
+    # Get all customers (only user's customers)
+    all_customers = await db.customers.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(1000)
     
-    # Get visits in date range
+    # Get visits in date range (only user's visits)
     visits = await db.visits.find({
+        "user_id": current_user["id"],
         "date": {"$gte": start, "$lte": end}
     }, {"_id": 0}).to_list(10000)
     
-    # Get follow-ups in date range for planned visit calculation
+    # Get follow-ups in date range for planned visit calculation (only user's)
     follow_ups = await db.follow_ups.find({
+        "user_id": current_user["id"],
         "due_date": {"$gte": start, "$lte": end}
     }, {"_id": 0}).to_list(10000)
     
