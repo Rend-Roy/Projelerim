@@ -539,6 +539,7 @@ export default function TodayPage() {
                 customer={customer}
                 visit={visits[customer.id]}
                 date={selectedDateStr}
+                onClick={() => navigate(`/customer/${customer.id}`, { state: { date: selectedDateStr } })}
               />
             ))}
           </div>
