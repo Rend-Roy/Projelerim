@@ -63,11 +63,14 @@ class TestCategoryCRUD(TestAuth):
         )
         assert response.status_code == 200, f"Create category failed: {response.text}"
         data = response.json()
-        assert data["name"] == unique_name
-        assert "id" in data
+        # Response format: {"message": "...", "category": {...}}
+        assert "category" in data, f"Response should have category key: {data}"
+        category = data["category"]
+        assert category["name"] == unique_name
+        assert "id" in category
         
         # Cleanup - delete the test category
-        requests.delete(f"{BASE_URL}/api/categories/{data['id']}", headers=auth_headers)
+        requests.delete(f"{BASE_URL}/api/categories/{category['id']}", headers=auth_headers)
     
     def test_create_duplicate_category_fails(self, auth_headers):
         """Test that duplicate category names are rejected"""
@@ -79,7 +82,7 @@ class TestCategoryCRUD(TestAuth):
             json={"name": unique_name}
         )
         assert response1.status_code == 200
-        cat_id = response1.json()["id"]
+        cat_id = response1.json()["category"]["id"]
         
         # Try to create duplicate
         response2 = requests.post(f"{BASE_URL}/api/categories", 
@@ -100,7 +103,7 @@ class TestCategoryCRUD(TestAuth):
             json={"name": unique_name}
         )
         assert create_response.status_code == 200
-        cat_id = create_response.json()["id"]
+        cat_id = create_response.json()["category"]["id"]
         
         # Update category
         new_name = f"TEST_Updated_{uuid.uuid4().hex[:8]}"
@@ -123,7 +126,7 @@ class TestCategoryCRUD(TestAuth):
             json={"name": unique_name}
         )
         assert create_response.status_code == 200
-        cat_id = create_response.json()["id"]
+        cat_id = create_response.json()["category"]["id"]
         
         # Delete category
         delete_response = requests.delete(f"{BASE_URL}/api/categories/{cat_id}", headers=auth_headers)
@@ -147,9 +150,10 @@ class TestProductCRUD(TestAuth):
             json={"name": unique_name}
         )
         assert response.status_code == 200
-        yield response.json()
+        category = response.json()["category"]
+        yield category
         # Cleanup
-        requests.delete(f"{BASE_URL}/api/categories/{response.json()['id']}", headers=auth_headers)
+        requests.delete(f"{BASE_URL}/api/categories/{category['id']}", headers=auth_headers)
     
     def test_get_products_requires_auth(self):
         """Test that products endpoint requires authentication"""
@@ -181,13 +185,16 @@ class TestProductCRUD(TestAuth):
         )
         assert response.status_code == 200, f"Create product failed: {response.text}"
         data = response.json()
-        assert data["product_code"] == unique_code
-        assert data["name"] == "Test Product"
-        assert data["base_price"] == 99.99
-        assert "id" in data
+        # Response format: {"message": "...", "product": {...}}
+        assert "product" in data, f"Response should have product key: {data}"
+        product = data["product"]
+        assert product["product_code"] == unique_code
+        assert product["name"] == "Test Product"
+        assert product["base_price"] == 99.99
+        assert "id" in product
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/api/products/{data['id']}", headers=auth_headers)
+        requests.delete(f"{BASE_URL}/api/products/{product['id']}", headers=auth_headers)
     
     def test_product_code_unique_validation(self, auth_headers, test_category):
         """Test that duplicate product codes are rejected"""
@@ -204,7 +211,7 @@ class TestProductCRUD(TestAuth):
             }
         )
         assert response1.status_code == 200
-        product_id = response1.json()["id"]
+        product_id = response1.json()["product"]["id"]
         
         # Try to create duplicate
         response2 = requests.post(f"{BASE_URL}/api/products", 
@@ -236,7 +243,7 @@ class TestProductCRUD(TestAuth):
             }
         )
         assert create_response.status_code == 200
-        product_id = create_response.json()["id"]
+        product_id = create_response.json()["product"]["id"]
         
         # Get product by ID
         get_response = requests.get(f"{BASE_URL}/api/products/{product_id}", headers=auth_headers)
@@ -263,7 +270,7 @@ class TestProductCRUD(TestAuth):
             }
         )
         assert create_response.status_code == 200
-        product_id = create_response.json()["id"]
+        product_id = create_response.json()["product"]["id"]
         
         # Update product
         update_response = requests.put(f"{BASE_URL}/api/products/{product_id}", 
@@ -301,7 +308,7 @@ class TestProductCRUD(TestAuth):
             }
         )
         assert create_response.status_code == 200
-        product_id = create_response.json()["id"]
+        product_id = create_response.json()["product"]["id"]
         
         # Delete product
         delete_response = requests.delete(f"{BASE_URL}/api/products/{product_id}", headers=auth_headers)
@@ -343,7 +350,7 @@ class TestProductFiltering(TestAuth):
             }
         )
         assert create_response.status_code == 200
-        product_id = create_response.json()["id"]
+        product_id = create_response.json()["product"]["id"]
         
         # Search for the product
         search_response = requests.get(f"{BASE_URL}/api/products?search={unique_name[:10]}", headers=auth_headers)
@@ -366,7 +373,7 @@ class TestProductFiltering(TestAuth):
             json={"name": unique_cat}
         )
         assert cat_response.status_code == 200
-        cat_id = cat_response.json()["id"]
+        cat_id = cat_response.json()["category"]["id"]
         
         # Create product in category
         prod_response = requests.post(f"{BASE_URL}/api/products", 
@@ -379,7 +386,7 @@ class TestProductFiltering(TestAuth):
             }
         )
         assert prod_response.status_code == 200
-        product_id = prod_response.json()["id"]
+        product_id = prod_response.json()["product"]["id"]
         
         # Filter by category
         filter_response = requests.get(f"{BASE_URL}/api/products?category={unique_cat}", headers=auth_headers)
