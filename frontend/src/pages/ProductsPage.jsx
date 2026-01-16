@@ -229,7 +229,7 @@ export default function ProductsPage() {
                   className="hover:bg-blue-100 rounded-full p-0.5"
                   data-testid="clear-filter-btn"
                 >
-                  ✕
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
               <Button 
