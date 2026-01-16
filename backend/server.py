@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, Header
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, Header, Query
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
@@ -16,6 +16,9 @@ import io
 from openpyxl import load_workbook
 from passlib.context import CryptContext
 import jwt
+import cloudinary
+import cloudinary.utils
+import time
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
