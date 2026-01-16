@@ -131,6 +131,11 @@ export default function CategoriesPage() {
     }
   };
 
+  // Kategoriye tıklama - ürünlere filtreli yönlendir
+  const handleCategoryClick = (categoryName) => {
+    navigate(`/products?category=${encodeURIComponent(categoryName)}`);
+  };
+
   return (
     <MobileLayout title="Kategoriler" showBackButton data-testid="categories-page">
       <div className="p-4 space-y-4">
@@ -181,66 +186,90 @@ export default function CategoriesPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {categories.map((category) => (
-              <div
-                key={category.id}
-                className={`bg-white rounded-xl border p-4 ${
-                  category.is_active ? "border-slate-100" : "border-slate-200 bg-slate-50 opacity-60"
-                }`}
-                data-testid={`category-item-${category.id}`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg ${category.is_active ? "bg-blue-50" : "bg-slate-100"}`}>
-                      <FolderOpen className={`w-5 h-5 ${category.is_active ? "text-blue-600" : "text-slate-400"}`} />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-slate-900">{category.name}</h3>
-                      {category.description && (
-                        <p className="text-sm text-slate-500 mt-0.5">{category.description}</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <Package className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="text-xs text-slate-500">
-                          {category.product_count || 0} ürün
-                        </span>
-                        {!category.is_active && (
-                          <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
-                            Pasif
-                          </span>
-                        )}
+            {categories.map((category) => {
+              const isEmpty = !category.product_count || category.product_count === 0;
+              const isInactive = !category.is_active;
+              
+              return (
+                <div
+                  key={category.id}
+                  className={`bg-white rounded-xl border p-4 transition-all ${
+                    isInactive ? "border-slate-200 bg-slate-50" : 
+                    isEmpty ? "border-slate-100 opacity-60" : "border-slate-100"
+                  }`}
+                  data-testid={`category-item-${category.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Tıklanabilir Alan - Kategoriye Git */}
+                    <div 
+                      className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => handleCategoryClick(category.name)}
+                    >
+                      <div className={`p-2 rounded-lg ${
+                        isInactive ? "bg-slate-100" : 
+                        isEmpty ? "bg-slate-100" : "bg-blue-50"
+                      }`}>
+                        <FolderOpen className={`w-5 h-5 ${
+                          isInactive ? "text-slate-400" : 
+                          isEmpty ? "text-slate-400" : "text-blue-600"
+                        }`} />
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`font-medium ${
+                          isInactive || isEmpty ? "text-slate-500" : "text-slate-900"
+                        }`}>
+                          {category.name}
+                        </h3>
+                        {category.description && (
+                          <p className="text-sm text-slate-400 truncate">{category.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          <Package className="w-3.5 h-3.5 text-slate-400" />
+                          <span className={`text-xs ${isEmpty ? "text-slate-400 italic" : "text-slate-500"}`}>
+                            {isEmpty ? "Henüz ürün yok" : `${category.product_count} ürün`}
+                          </span>
+                          {isInactive && (
+                            <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
+                              Pasif
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight className={`w-5 h-5 ${isEmpty ? "text-slate-300" : "text-slate-400"}`} />
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setEditCategory(category);
-                        setEditOpen(true);
-                      }}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit className="w-4 h-4 text-slate-400" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setDeleteCategory(category);
-                        setDeleteOpen(true);
-                      }}
-                      className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
-                      disabled={category.product_count > 0}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    
+                    {/* Düzenleme Butonları */}
+                    <div className="flex items-center gap-1 border-l border-slate-100 pl-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditCategory(category);
+                          setEditOpen(true);
+                        }}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="w-4 h-4 text-slate-400" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteCategory(category);
+                          setDeleteOpen(true);
+                        }}
+                        className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                        disabled={category.product_count > 0}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
