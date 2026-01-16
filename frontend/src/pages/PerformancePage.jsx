@@ -163,7 +163,7 @@ export default function PerformancePage() {
   return (
     <div className="p-4 pt-6 pb-24" data-testid="performance-page">
       {/* Header */}
-      <header className="mb-5">
+      <div className="mb-5">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
           <BarChart3 className="w-6 h-6 text-blue-600" />
           Performans
@@ -173,7 +173,7 @@ export default function PerformancePage() {
             ? `${formatDate(data.start_date)} - ${formatDate(data.end_date)}`
             : ""}
         </p>
-      </header>
+      </div>
 
       {/* Period Toggle */}
       <div className="flex gap-2 mb-5">

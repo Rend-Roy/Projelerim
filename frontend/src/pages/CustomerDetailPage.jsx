@@ -256,7 +256,7 @@ export default function CustomerDetailPage() {
   return (
     <div className="p-4 pt-6 pb-24" data-testid="customer-detail-page">
       {/* Header */}
-      <header className="mb-5">
+      <div className="mb-5">
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => navigate(-1)}
@@ -321,7 +321,7 @@ export default function CustomerDetailPage() {
             ))}
           </div>
         )}
-      </header>
+      </div>
 
       {/* FAZ 2: Ziyaret Süresi Takibi */}
       <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-3">

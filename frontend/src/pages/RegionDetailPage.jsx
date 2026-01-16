@@ -61,7 +61,7 @@ export default function RegionDetailPage() {
   return (
     <div className="p-4 pt-6" data-testid="region-detail-page">
       {/* Header */}
-      <header className="mb-5">
+      <div className="mb-5">
         <button
           onClick={() => navigate("/regions")}
           className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors mb-3"
@@ -91,7 +91,7 @@ export default function RegionDetailPage() {
             {region.description}
           </p>
         )}
-      </header>
+      </div>
 
       {/* Customer List */}
       <section>

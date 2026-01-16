@@ -190,7 +190,7 @@ export default function CustomerFormPage() {
   return (
     <div className="p-4 pt-6" data-testid="customer-form-page">
       {/* Header */}
-      <header className="mb-6">
+      <div className="mb-6">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors mb-4"
@@ -235,7 +235,7 @@ export default function CustomerFormPage() {
             </AlertDialog>
           )}
         </div>
-      </header>
+      </div>
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">

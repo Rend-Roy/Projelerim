@@ -132,7 +132,7 @@ export default function RegionsPage() {
   return (
     <div className="p-4 pt-6" data-testid="regions-page">
       {/* Header */}
-      <header className="mb-5">
+      <div className="mb-5">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
@@ -153,7 +153,7 @@ export default function RegionsPage() {
             Ekle
           </Button>
         </div>
-      </header>
+      </div>
 
       {/* Region List */}
       {loading ? (

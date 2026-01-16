@@ -127,7 +127,7 @@ export default function CustomersPage() {
   return (
     <div className="p-4 pt-6" data-testid="customers-page">
       {/* Header */}
-      <header className="mb-4">
+      <div className="mb-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
@@ -148,7 +148,7 @@ export default function CustomersPage() {
             Excel Yükle
           </Button>
         </div>
-      </header>
+      </div>
 
       {/* Search */}
       <div className="relative mb-6">
