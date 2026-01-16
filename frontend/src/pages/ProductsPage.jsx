@@ -194,7 +194,7 @@ export default function ProductsPage() {
           </div>
           
           <div className="flex gap-2">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <Select value={selectedCategory} onValueChange={handleCategoryChange}>
               <SelectTrigger className="flex-1 h-10 bg-white" data-testid="category-filter">
                 <Filter className="w-4 h-4 mr-2 text-slate-400" />
                 <SelectValue placeholder="Tüm Kategoriler" />
@@ -203,7 +203,7 @@ export default function ProductsPage() {
                 <SelectItem value="all">Tüm Kategoriler</SelectItem>
                 {categories.map((cat) => (
                   <SelectItem key={cat.id} value={cat.name}>
-                    {cat.name} ({cat.product_count})
+                    {cat.name} {cat.product_count !== undefined && `(${cat.product_count})`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -218,6 +218,30 @@ export default function ProductsPage() {
               {viewMode === "grid" ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
             </Button>
           </div>
+          
+          {/* Aktif filtre badge */}
+          {selectedCategory && selectedCategory !== "all" && (
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm">
+                <span>Kategori: <strong>{selectedCategory}</strong></span>
+                <button 
+                  onClick={clearFilter}
+                  className="hover:bg-blue-100 rounded-full p-0.5"
+                  data-testid="clear-filter-btn"
+                >
+                  ✕
+                </button>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={clearFilter}
+                className="text-slate-500 hover:text-slate-700"
+              >
+                Tüm Ürünler
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Stats */}
