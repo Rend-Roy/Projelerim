@@ -2959,6 +2959,8 @@ async def create_product(
     doc["created_at"] = doc["created_at"].isoformat()
     await db.products.insert_one(doc)
     
+    # _id'yi kaldır (MongoDB ekledi)
+    doc.pop("_id", None)
     return {"message": "Ürün oluşturuldu", "product": doc}
 
 @api_router.put("/products/{product_id}")
