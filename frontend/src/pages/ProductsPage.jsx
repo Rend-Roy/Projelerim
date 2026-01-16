@@ -28,14 +28,15 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function ProductsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   
-  // Filters
+  // Filters - URL'den kategori parametresini oku
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
   const [viewMode, setViewMode] = useState("grid"); // grid or list
   
   // Excel Upload Dialog
