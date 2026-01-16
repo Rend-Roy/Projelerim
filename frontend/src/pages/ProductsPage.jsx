@@ -175,7 +175,7 @@ export default function ProductsPage() {
                 <SelectValue placeholder="Tüm Kategoriler" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tüm Kategoriler</SelectItem>
+                <SelectItem value="all">Tüm Kategoriler</SelectItem>
                 {categories.map((cat) => (
                   <SelectItem key={cat.id} value={cat.name}>
                     {cat.name} ({cat.product_count})
