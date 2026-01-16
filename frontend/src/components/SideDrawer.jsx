@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { X, Car, BarChart3, Fuel, Settings, Package, ImagePlus, FolderOpen } from "lucide-react";
+import { X, Car, BarChart3, Package, ImagePlus, FolderOpen } from "lucide-react";
 
 export default function SideDrawer({ isOpen, onClose }) {
   const navigate = useNavigate();
