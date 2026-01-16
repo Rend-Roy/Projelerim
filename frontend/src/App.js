@@ -19,6 +19,11 @@ import VehiclesPage from "@/pages/VehiclesPage";
 import FuelRecordsPage from "@/pages/FuelRecordsPage";
 import DailyKmPage from "@/pages/DailyKmPage";
 import VehicleStatsPage from "@/pages/VehicleStatsPage";
+// FAZ 5: Ürün Kataloğu Modülü
+import ProductsPage from "@/pages/ProductsPage";
+import ProductDetailPage from "@/pages/ProductDetailPage";
+import CategoriesPage from "@/pages/CategoriesPage";
+import BulkImageUploadPage from "@/pages/BulkImageUploadPage";
 
 function App() {
   return (
@@ -51,6 +56,11 @@ function App() {
                       <Route path="/fuel-records" element={<FuelRecordsPage />} />
                       <Route path="/daily-km" element={<DailyKmPage />} />
                       <Route path="/vehicle-stats/:id" element={<VehicleStatsPage />} />
+                      {/* FAZ 5: Ürün Kataloğu Modülü */}
+                      <Route path="/products" element={<ProductsPage />} />
+                      <Route path="/products/:id" element={<ProductDetailPage />} />
+                      <Route path="/categories" element={<CategoriesPage />} />
+                      <Route path="/products/upload-images" element={<BulkImageUploadPage />} />
                     </Routes>
                   </MobileLayout>
                 </ProtectedRoute>
