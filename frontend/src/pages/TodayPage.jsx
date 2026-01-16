@@ -133,9 +133,20 @@ export default function TodayPage() {
     };
   }, []);
 
-  const completedCount = Object.values(visits).filter((v) => v.completed).length;
+  // Yeni status sistemine göre sayıları hesapla
+  const visitedCount = Object.values(visits).filter((v) => {
+    const status = v.status || (v.completed ? "visited" : (v.visit_skip_reason ? "not_visited" : "pending"));
+    return status === "visited";
+  }).length;
+  
+  const notVisitedCount = Object.values(visits).filter((v) => {
+    const status = v.status || (v.completed ? "visited" : (v.visit_skip_reason ? "not_visited" : "pending"));
+    return status === "not_visited";
+  }).length;
+  
   const totalCount = customers.length;
-  const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+  const processedCount = visitedCount + notVisitedCount; // İşlenen toplam (ziyaret + edilmedi)
+  const progressPercent = totalCount > 0 ? (processedCount / totalCount) * 100 : 0;
 
   const handleCompleteFollowUp = async (followUpId) => {
     try {
