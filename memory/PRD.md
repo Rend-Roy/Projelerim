@@ -60,6 +60,18 @@ Satış temsilcileri için çok kullanıcılı, günlük müşteri ziyaretlerini
 - [x] PDF raporuna günlük araç özeti eklendi
 - [x] Yan menü (drawer) navigasyon
 
+### Bugün Ekranı & PDF İyileştirmeleri (Tamamlandı - 17 Ocak 2026)
+- [x] 3 durumlu ziyaret sistemi: pending, visited, not_visited
+- [x] "Ziyaret Edilmedi" seçildiğinde sebep zorunlu
+- [x] "Ziyaret Edilmedi" durumunda tahsilat alanı pasif
+- [x] Net durum badge'leri: Gri (Bekliyor), Yeşil (Ziyaret Edildi), Kırmızı (Ziyaret Edilmedi)
+- [x] CustomerCard sol kenar rengi status'a göre değişiyor
+- [x] PDF raporu kompakt, tablo bazlı format
+- [x] Sayfa 1: Yönetici özeti (satış temsilcisi adı dahil)
+- [x] Sayfa 2: Ziyaret edilenler tablosu
+- [x] Sayfa 3: Ziyaret edilmeyenler tablosu
+- [x] Geriye uyumlu migration (eski veriler için)
+
 ## Tech Stack
 - **Backend**: FastAPI (Python) + MongoDB (Motor async)
 - **Frontend**: React + Tailwind CSS + Shadcn UI
