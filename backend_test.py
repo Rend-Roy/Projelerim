@@ -1295,7 +1295,7 @@ class TurkishCustomerVisitAPITester:
         return True
 
 def main():
-    print("🚀 Starting Turkish Customer Visit Tracking API Tests - FAZ 3.0")
+    print("🚀 Starting Turkish Customer Visit Tracking API Tests - FAZ 4")
     print("=" * 70)
     
     tester = TurkishCustomerVisitAPITester()
