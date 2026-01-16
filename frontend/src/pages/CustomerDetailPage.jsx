@@ -432,85 +432,96 @@ export default function CustomerDetailPage() {
         )}
       </div>
 
-      {/* Tahsilat Durumu */}
-      <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-3">
+      {/* Tahsilat Durumu - Ziyaret Edilmedi ise pasif */}
+      <div className={`bg-white rounded-xl p-4 border shadow-sm mb-3 ${visitStatus === "not_visited" ? "opacity-50 border-slate-200" : "border-slate-100"}`}>
         <h2 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
           <Banknote className="w-5 h-5 text-slate-600" />
           Tahsilat Durumu
+          {visitStatus === "not_visited" && (
+            <span className="text-xs text-slate-400 font-normal ml-2">(Ziyaret edilmedi)</span>
+          )}
         </h2>
         
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div
-            onClick={() => setPaymentCollected(true)}
-            className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
-              paymentCollected
-                ? "bg-green-50 border-green-200"
-                : "bg-white border-slate-200"
-            }`}
-            data-testid="payment-yes"
-          >
-            <CheckCircle className={`w-5 h-5 ${paymentCollected ? "text-green-600" : "text-slate-300"}`} />
-            <span className={`text-sm font-medium ${paymentCollected ? "text-green-700" : "text-slate-600"}`}>
-              Tahsilat Yapıldı
-            </span>
-          </div>
-          <div
-            onClick={() => setPaymentCollected(false)}
-            className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
-              !paymentCollected
-                ? "bg-orange-50 border-orange-200"
-                : "bg-white border-slate-200"
-            }`}
-            data-testid="payment-no"
-          >
-            <XCircle className={`w-5 h-5 ${!paymentCollected ? "text-orange-600" : "text-slate-300"}`} />
-            <span className={`text-sm font-medium ${!paymentCollected ? "text-orange-700" : "text-slate-600"}`}>
-              Tahsilat Yapılmadı
-            </span>
-          </div>
-        </div>
-
-        {paymentCollected ? (
-          <div className="space-y-3 mt-3">
-            <div>
-              <label className="block text-sm text-slate-600 mb-1.5">Ödeme Türü</label>
-              <Select value={paymentType} onValueChange={setPaymentType}>
-                <SelectTrigger className="h-11 bg-slate-50 border-slate-200 rounded-lg" data-testid="payment-type">
-                  <SelectValue placeholder="Tür seçin..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm text-slate-600 mb-1.5">Tahsilat Tutarı (TL)</label>
-              <Input
-                type="number"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                placeholder="0.00"
-                className="h-11 bg-slate-50 border-slate-200 rounded-lg"
-                data-testid="payment-amount"
-              />
-            </div>
+        {visitStatus === "not_visited" ? (
+          <div className="text-center py-4 text-slate-400 text-sm">
+            Ziyaret edilmediği için tahsilat bilgisi girilemez
           </div>
         ) : (
-          <div className="mt-3">
-            <label className="block text-sm text-slate-600 mb-1.5">Tahsilat Yapılmama Sebebi</label>
-            <Select value={paymentSkipReason} onValueChange={setPaymentSkipReason}>
-              <SelectTrigger className="h-11 bg-slate-50 border-slate-200 rounded-lg" data-testid="payment-skip-reason">
-                <SelectValue placeholder="Sebep seçin..." />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_SKIP_REASONS.map((reason) => (
-                  <SelectItem key={reason} value={reason}>{reason}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div
+                onClick={() => setPaymentCollected(true)}
+                className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
+                  paymentCollected
+                    ? "bg-green-50 border-green-200"
+                    : "bg-white border-slate-200"
+                }`}
+                data-testid="payment-yes"
+              >
+                <CheckCircle className={`w-5 h-5 ${paymentCollected ? "text-green-600" : "text-slate-300"}`} />
+                <span className={`text-sm font-medium ${paymentCollected ? "text-green-700" : "text-slate-600"}`}>
+                  Tahsilat Yapıldı
+                </span>
+              </div>
+              <div
+                onClick={() => setPaymentCollected(false)}
+                className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
+                  !paymentCollected
+                    ? "bg-orange-50 border-orange-200"
+                    : "bg-white border-slate-200"
+                }`}
+                data-testid="payment-no"
+              >
+                <XCircle className={`w-5 h-5 ${!paymentCollected ? "text-orange-600" : "text-slate-300"}`} />
+                <span className={`text-sm font-medium ${!paymentCollected ? "text-orange-700" : "text-slate-600"}`}>
+                  Tahsilat Yapılmadı
+                </span>
+              </div>
+            </div>
+
+            {paymentCollected ? (
+              <div className="space-y-3 mt-3">
+                <div>
+                  <label className="block text-sm text-slate-600 mb-1.5">Ödeme Türü</label>
+                  <Select value={paymentType} onValueChange={setPaymentType}>
+                    <SelectTrigger className="h-11 bg-slate-50 border-slate-200 rounded-lg" data-testid="payment-type">
+                      <SelectValue placeholder="Tür seçin..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-600 mb-1.5">Tahsilat Tutarı (TL)</label>
+                  <Input
+                    type="number"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="h-11 bg-slate-50 border-slate-200 rounded-lg"
+                    data-testid="payment-amount"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3">
+                <label className="block text-sm text-slate-600 mb-1.5">Tahsilat Yapılmama Sebebi</label>
+                <Select value={paymentSkipReason} onValueChange={setPaymentSkipReason}>
+                  <SelectTrigger className="h-11 bg-slate-50 border-slate-200 rounded-lg" data-testid="payment-skip-reason">
+                    <SelectValue placeholder="Sebep seçin..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_SKIP_REASONS.map((reason) => (
+                      <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </>
         )}
       </div>
 
