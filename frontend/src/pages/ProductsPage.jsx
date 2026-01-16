@@ -88,6 +88,30 @@ export default function ProductsPage() {
     fetchCategories();
   }, []);
 
+  // URL'den kategori değişikliğini takip et
+  useEffect(() => {
+    const categoryFromUrl = searchParams.get("category");
+    if (categoryFromUrl && categoryFromUrl !== selectedCategory) {
+      setSelectedCategory(categoryFromUrl);
+    }
+  }, [searchParams]);
+
+  // Kategori değişince URL'i güncelle
+  const handleCategoryChange = (value) => {
+    setSelectedCategory(value);
+    if (value && value !== "all") {
+      setSearchParams({ category: value });
+    } else {
+      setSearchParams({});
+    }
+  };
+
+  // Filtreyi temizle
+  const clearFilter = () => {
+    setSelectedCategory("");
+    setSearchParams({});
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchProducts();
