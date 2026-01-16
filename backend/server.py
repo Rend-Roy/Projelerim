@@ -2729,6 +2729,481 @@ async def generate_period_report_pdf(
         }
     )
 
+# =============================================================================
+# FAZ 5: Ürün Kataloğu Endpoint'leri
+# =============================================================================
+
+# Cloudinary Signature Endpoint
+@api_router.get("/cloudinary/signature")
+async def get_cloudinary_signature(
+    folder: str = Query(default="products"),
+    current_user: dict = Depends(require_auth)
+):
+    """Cloudinary upload için imza oluştur"""
+    ALLOWED_FOLDERS = ("products/", "products")
+    if not folder.startswith(ALLOWED_FOLDERS) and folder not in ALLOWED_FOLDERS:
+        folder = "products"
+    
+    timestamp = int(time.time())
+    params = {
+        "timestamp": timestamp,
+        "folder": f"{folder}/{current_user['id']}"
+    }
+    
+    signature = cloudinary.utils.api_sign_request(
+        params,
+        os.environ.get("CLOUDINARY_API_SECRET")
+    )
+    
+    return {
+        "signature": signature,
+        "timestamp": timestamp,
+        "cloud_name": os.environ.get("CLOUDINARY_CLOUD_NAME"),
+        "api_key": os.environ.get("CLOUDINARY_API_KEY"),
+        "folder": f"{folder}/{current_user['id']}"
+    }
+
+# ===== Kategori Endpoint'leri =====
+
+@api_router.get("/categories")
+async def get_categories(
+    include_inactive: bool = False,
+    current_user: dict = Depends(require_auth)
+):
+    """Kategorileri listele"""
+    query = {"user_id": current_user["id"]}
+    if not include_inactive:
+        query["is_active"] = True
+    
+    categories = await db.categories.find(query, {"_id": 0}).to_list(1000)
+    
+    # Her kategori için ürün sayısını hesapla
+    for cat in categories:
+        product_count = await db.products.count_documents({
+            "user_id": current_user["id"],
+            "category": cat["name"],
+            "is_active": True
+        })
+        cat["product_count"] = product_count
+    
+    return categories
+
+@api_router.post("/categories")
+async def create_category(
+    input: CategoryCreate,
+    current_user: dict = Depends(require_auth)
+):
+    """Yeni kategori oluştur"""
+    # Aynı isimde kategori var mı?
+    existing = await db.categories.find_one({
+        "user_id": current_user["id"],
+        "name": input.name
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Bu isimde kategori zaten mevcut")
+    
+    category = Category(
+        user_id=current_user["id"],
+        **input.model_dump()
+    )
+    doc = category.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.categories.insert_one(doc)
+    
+    return {"message": "Kategori oluşturuldu", "category": doc}
+
+@api_router.put("/categories/{category_id}")
+async def update_category(
+    category_id: str,
+    input: CategoryUpdate,
+    current_user: dict = Depends(require_auth)
+):
+    """Kategori güncelle"""
+    category = await db.categories.find_one({
+        "id": category_id,
+        "user_id": current_user["id"]
+    }, {"_id": 0})
+    
+    if not category:
+        raise HTTPException(status_code=404, detail="Kategori bulunamadı")
+    
+    old_name = category["name"]
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    
+    # İsim değişiyorsa, ürünlerdeki kategori adını da güncelle
+    if "name" in update_data and update_data["name"] != old_name:
+        await db.products.update_many(
+            {"user_id": current_user["id"], "category": old_name},
+            {"$set": {"category": update_data["name"]}}
+        )
+    
+    if update_data:
+        await db.categories.update_one(
+            {"id": category_id, "user_id": current_user["id"]},
+            {"$set": update_data}
+        )
+    
+    updated = await db.categories.find_one({"id": category_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/categories/{category_id}")
+async def delete_category(
+    category_id: str,
+    current_user: dict = Depends(require_auth)
+):
+    """Kategori sil (ürünleri olan kategoriler silinemez)"""
+    category = await db.categories.find_one({
+        "id": category_id,
+        "user_id": current_user["id"]
+    }, {"_id": 0})
+    
+    if not category:
+        raise HTTPException(status_code=404, detail="Kategori bulunamadı")
+    
+    # Bu kategoride ürün var mı?
+    product_count = await db.products.count_documents({
+        "user_id": current_user["id"],
+        "category": category["name"]
+    })
+    
+    if product_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Bu kategoride {product_count} ürün var. Önce ürünleri başka kategoriye taşıyın."
+        )
+    
+    await db.categories.delete_one({"id": category_id, "user_id": current_user["id"]})
+    return {"message": "Kategori silindi"}
+
+# ===== Ürün Endpoint'leri =====
+
+@api_router.get("/products")
+async def get_products(
+    category: Optional[str] = None,
+    search: Optional[str] = None,
+    include_inactive: bool = False,
+    skip: int = 0,
+    limit: int = 100,
+    current_user: dict = Depends(require_auth)
+):
+    """Ürünleri listele (sayfalama destekli)"""
+    query = {"user_id": current_user["id"]}
+    
+    if not include_inactive:
+        query["is_active"] = True
+    
+    if category:
+        query["category"] = category
+    
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"product_code": {"$regex": search, "$options": "i"}}
+        ]
+    
+    total = await db.products.count_documents(query)
+    products = await db.products.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+    
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "products": products
+    }
+
+@api_router.get("/products/{product_id}")
+async def get_product(
+    product_id: str,
+    current_user: dict = Depends(require_auth)
+):
+    """Ürün detayı"""
+    product = await db.products.find_one({
+        "id": product_id,
+        "user_id": current_user["id"]
+    }, {"_id": 0})
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Ürün bulunamadı")
+    
+    return product
+
+@api_router.post("/products")
+async def create_product(
+    input: ProductCreate,
+    current_user: dict = Depends(require_auth)
+):
+    """Yeni ürün oluştur"""
+    # product_code benzersiz olmalı
+    existing = await db.products.find_one({
+        "user_id": current_user["id"],
+        "product_code": input.product_code
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Bu ürün kodu zaten mevcut")
+    
+    # Kategori yoksa oluştur
+    cat_exists = await db.categories.find_one({
+        "user_id": current_user["id"],
+        "name": input.category
+    })
+    if not cat_exists:
+        new_cat = Category(user_id=current_user["id"], name=input.category)
+        cat_doc = new_cat.model_dump()
+        cat_doc["created_at"] = cat_doc["created_at"].isoformat()
+        await db.categories.insert_one(cat_doc)
+    
+    product = Product(user_id=current_user["id"], **input.model_dump())
+    doc = product.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.products.insert_one(doc)
+    
+    return {"message": "Ürün oluşturuldu", "product": doc}
+
+@api_router.put("/products/{product_id}")
+async def update_product(
+    product_id: str,
+    input: ProductUpdate,
+    current_user: dict = Depends(require_auth)
+):
+    """Ürün güncelle"""
+    product = await db.products.find_one({
+        "id": product_id,
+        "user_id": current_user["id"]
+    }, {"_id": 0})
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Ürün bulunamadı")
+    
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    
+    # product_code değişiyorsa benzersizlik kontrolü
+    if "product_code" in update_data and update_data["product_code"] != product["product_code"]:
+        existing = await db.products.find_one({
+            "user_id": current_user["id"],
+            "product_code": update_data["product_code"]
+        })
+        if existing:
+            raise HTTPException(status_code=400, detail="Bu ürün kodu zaten mevcut")
+    
+    # Yeni kategori ise oluştur
+    if "category" in update_data:
+        cat_exists = await db.categories.find_one({
+            "user_id": current_user["id"],
+            "name": update_data["category"]
+        })
+        if not cat_exists:
+            new_cat = Category(user_id=current_user["id"], name=update_data["category"])
+            cat_doc = new_cat.model_dump()
+            cat_doc["created_at"] = cat_doc["created_at"].isoformat()
+            await db.categories.insert_one(cat_doc)
+    
+    if update_data:
+        await db.products.update_one(
+            {"id": product_id, "user_id": current_user["id"]},
+            {"$set": update_data}
+        )
+    
+    updated = await db.products.find_one({"id": product_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/products/{product_id}")
+async def delete_product(
+    product_id: str,
+    current_user: dict = Depends(require_auth)
+):
+    """Ürün sil"""
+    product = await db.products.find_one({
+        "id": product_id,
+        "user_id": current_user["id"]
+    }, {"_id": 0})
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Ürün bulunamadı")
+    
+    await db.products.delete_one({"id": product_id, "user_id": current_user["id"]})
+    return {"message": "Ürün silindi"}
+
+# ===== Excel Yükleme =====
+
+@api_router.post("/products/upload")
+async def upload_products_excel(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(require_auth)
+):
+    """
+    Excel'den toplu ürün yükleme.
+    Kolonlar: product_code | product_name | category | price | unit | description
+    Aynı product_code varsa günceller, yoksa yeni oluşturur.
+    """
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Sadece Excel dosyaları kabul edilir")
+    
+    try:
+        content = await file.read()
+        wb = load_workbook(filename=io.BytesIO(content))
+        ws = wb.active
+        
+        # Başlık satırını al
+        headers = [str(cell.value).lower().strip() if cell.value else "" for cell in ws[1]]
+        
+        # Kolon eşleştirme
+        col_map = {}
+        for i, h in enumerate(headers):
+            if "code" in h or "kod" in h:
+                col_map["product_code"] = i
+            elif "name" in h or "ad" in h or "isim" in h:
+                col_map["name"] = i
+            elif "categ" in h or "kategori" in h:
+                col_map["category"] = i
+            elif "price" in h or "fiyat" in h:
+                col_map["price"] = i
+            elif "unit" in h or "birim" in h:
+                col_map["unit"] = i
+            elif "desc" in h or "açıklama" in h:
+                col_map["description"] = i
+        
+        if "product_code" not in col_map or "name" not in col_map:
+            raise HTTPException(
+                status_code=400,
+                detail="Excel'de 'product_code' ve 'product_name' kolonları zorunludur"
+            )
+        
+        created_count = 0
+        updated_count = 0
+        error_rows = []
+        categories_created = set()
+        
+        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            try:
+                product_code = str(row[col_map["product_code"]]).strip() if row[col_map["product_code"]] else None
+                name = str(row[col_map["name"]]).strip() if row[col_map["name"]] else None
+                
+                if not product_code or not name:
+                    error_rows.append({"row": row_idx, "error": "Ürün kodu veya adı boş"})
+                    continue
+                
+                category = str(row[col_map.get("category", -1)]).strip() if col_map.get("category") is not None and row[col_map["category"]] else "Genel"
+                
+                price = 0
+                if col_map.get("price") is not None and row[col_map["price"]]:
+                    try:
+                        price = float(row[col_map["price"]])
+                    except:
+                        pass
+                
+                unit = str(row[col_map.get("unit", -1)]).strip() if col_map.get("unit") is not None and row[col_map["unit"]] else "Adet"
+                description = str(row[col_map.get("description", -1)]).strip() if col_map.get("description") is not None and row[col_map["description"]] else None
+                
+                # Kategori yoksa oluştur
+                if category not in categories_created:
+                    cat_exists = await db.categories.find_one({
+                        "user_id": current_user["id"],
+                        "name": category
+                    })
+                    if not cat_exists:
+                        new_cat = Category(user_id=current_user["id"], name=category)
+                        cat_doc = new_cat.model_dump()
+                        cat_doc["created_at"] = cat_doc["created_at"].isoformat()
+                        await db.categories.insert_one(cat_doc)
+                        categories_created.add(category)
+                
+                # Ürün var mı?
+                existing = await db.products.find_one({
+                    "user_id": current_user["id"],
+                    "product_code": product_code
+                })
+                
+                if existing:
+                    # Güncelle
+                    await db.products.update_one(
+                        {"id": existing["id"]},
+                        {"$set": {
+                            "name": name,
+                            "category": category,
+                            "base_price": price,
+                            "unit": unit,
+                            "description": description
+                        }}
+                    )
+                    updated_count += 1
+                else:
+                    # Yeni oluştur
+                    product = Product(
+                        user_id=current_user["id"],
+                        product_code=product_code,
+                        name=name,
+                        category=category,
+                        base_price=price,
+                        unit=unit,
+                        description=description
+                    )
+                    doc = product.model_dump()
+                    doc["created_at"] = doc["created_at"].isoformat()
+                    await db.products.insert_one(doc)
+                    created_count += 1
+                    
+            except Exception as e:
+                error_rows.append({"row": row_idx, "error": str(e)})
+        
+        return {
+            "message": "Yükleme tamamlandı",
+            "created": created_count,
+            "updated": updated_count,
+            "errors": error_rows,
+            "categories_created": list(categories_created)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Excel işleme hatası: {str(e)}")
+
+# ===== Toplu Görsel Eşleştirme =====
+
+@api_router.post("/products/match-images")
+async def match_product_images(
+    images: List[dict],  # [{"product_code": "ABC123", "url": "https://..."}]
+    current_user: dict = Depends(require_auth)
+):
+    """
+    Yüklenen görselleri product_code ile eşleştir.
+    Frontend Cloudinary'ye yükledikten sonra bu endpoint'i çağırır.
+    """
+    matched = []
+    unmatched = []
+    
+    for img in images:
+        product_code = img.get("product_code")
+        url = img.get("url")
+        
+        if not product_code or not url:
+            unmatched.append({"product_code": product_code, "reason": "Eksik bilgi"})
+            continue
+        
+        # Ürünü bul
+        product = await db.products.find_one({
+            "user_id": current_user["id"],
+            "product_code": product_code
+        })
+        
+        if product:
+            # Görseli ekle
+            current_images = product.get("images", [])
+            if url not in current_images:
+                current_images.append(url)
+                await db.products.update_one(
+                    {"id": product["id"]},
+                    {"$set": {"images": current_images}}
+                )
+            matched.append({"product_code": product_code, "product_name": product["name"]})
+        else:
+            unmatched.append({"product_code": product_code, "reason": "Ürün bulunamadı"})
+    
+    return {
+        "matched_count": len(matched),
+        "unmatched_count": len(unmatched),
+        "matched": matched,
+        "unmatched": unmatched
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
