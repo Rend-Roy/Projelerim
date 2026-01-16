@@ -7,7 +7,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import MobileLayout from "@/components/MobileLayout";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -120,7 +119,7 @@ export default function BulkImageUploadPage() {
   };
 
   return (
-    <MobileLayout title="Toplu Görsel Yükle" showBackButton data-testid="bulk-image-upload-page">
+    <div data-testid="bulk-image-upload-page">
       <div className="p-4 space-y-4">
         {/* Instructions */}
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
@@ -312,6 +311,6 @@ export default function BulkImageUploadPage() {
           </div>
         )}
       </div>
-    </MobileLayout>
+    </div>
   );
 }
