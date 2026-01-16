@@ -364,7 +364,7 @@ export default function CustomerDetailPage() {
         )}
       </div>
 
-      {/* Ziyaret Durumu */}
+      {/* Ziyaret Durumu - Yeni 3 durumlu sistem */}
       <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-3">
         <h2 className="text-base font-semibold text-slate-800 mb-3">
           Ziyaret Durumu
@@ -372,41 +372,55 @@ export default function CustomerDetailPage() {
         
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div
-            onClick={() => setCompleted(true)}
+            onClick={() => {
+              setVisitStatus("visited");
+              setCompleted(true);
+              setVisitSkipReason("");
+            }}
             className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
-              completed
+              visitStatus === "visited"
                 ? "bg-green-50 border-green-200"
                 : "bg-white border-slate-200"
             }`}
             data-testid="visit-yes"
           >
-            <CheckCircle className={`w-5 h-5 ${completed ? "text-green-600" : "text-slate-300"}`} />
-            <span className={`text-sm font-medium ${completed ? "text-green-700" : "text-slate-600"}`}>
+            <CheckCircle className={`w-5 h-5 ${visitStatus === "visited" ? "text-green-600" : "text-slate-300"}`} />
+            <span className={`text-sm font-medium ${visitStatus === "visited" ? "text-green-700" : "text-slate-600"}`}>
               Ziyaret Edildi
             </span>
           </div>
           <div
-            onClick={() => setCompleted(false)}
+            onClick={() => {
+              setVisitStatus("not_visited");
+              setCompleted(false);
+              // Tahsilat alanlarını sıfırla
+              setPaymentCollected(false);
+              setPaymentType("");
+              setPaymentAmount("");
+              setPaymentSkipReason("");
+            }}
             className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
-              !completed
+              visitStatus === "not_visited"
                 ? "bg-red-50 border-red-200"
                 : "bg-white border-slate-200"
             }`}
             data-testid="visit-no"
           >
-            <XCircle className={`w-5 h-5 ${!completed ? "text-red-600" : "text-slate-300"}`} />
-            <span className={`text-sm font-medium ${!completed ? "text-red-700" : "text-slate-600"}`}>
+            <XCircle className={`w-5 h-5 ${visitStatus === "not_visited" ? "text-red-600" : "text-slate-300"}`} />
+            <span className={`text-sm font-medium ${visitStatus === "not_visited" ? "text-red-700" : "text-slate-600"}`}>
               Ziyaret Edilmedi
             </span>
           </div>
         </div>
 
-        {!completed && (
+        {visitStatus === "not_visited" && (
           <div className="mt-3">
-            <label className="block text-sm text-slate-600 mb-1.5">Ziyaret Edilmeme Sebebi</label>
+            <label className="block text-sm text-slate-600 mb-1.5">
+              Ziyaret Edilmeme Sebebi <span className="text-red-500">*</span>
+            </label>
             <Select value={visitSkipReason} onValueChange={setVisitSkipReason}>
-              <SelectTrigger className="h-11 bg-slate-50 border-slate-200 rounded-lg" data-testid="visit-skip-reason">
-                <SelectValue placeholder="Sebep seçin..." />
+              <SelectTrigger className={`h-11 bg-slate-50 rounded-lg ${!visitSkipReason ? "border-red-300" : "border-slate-200"}`} data-testid="visit-skip-reason">
+                <SelectValue placeholder="Sebep seçin (zorunlu)..." />
               </SelectTrigger>
               <SelectContent>
                 {VISIT_SKIP_REASONS.map((reason) => (
