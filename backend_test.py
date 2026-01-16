@@ -958,6 +958,342 @@ class TurkishCustomerVisitAPITester:
         print(f"✅ {action.capitalize()} response validation passed")
         return True
 
+    # ===== FAZ 4: VEHICLE, FUEL AND DAILY KM TRACKING TESTS =====
+    
+    def test_get_fuel_types(self):
+        """Test getting fuel types"""
+        success, response = self.run_test(
+            "Get Fuel Types",
+            "GET",
+            "fuel-types",
+            200
+        )
+        return success, response
+    
+    def validate_fuel_types_response(self, response):
+        """Validate fuel types API response"""
+        print("\n🔍 Validating fuel types response...")
+        
+        if 'fuel_types' not in response:
+            print("❌ Missing 'fuel_types' field in response")
+            return False
+        
+        fuel_types = response.get('fuel_types', [])
+        expected_types = ["Benzin", "Dizel", "LPG", "Elektrik", "Hibrit"]
+        
+        if len(fuel_types) != 5:
+            print(f"❌ Expected 5 fuel types, got {len(fuel_types)}")
+            return False
+        
+        for expected_type in expected_types:
+            if expected_type not in fuel_types:
+                print(f"❌ Missing expected fuel type: {expected_type}")
+                return False
+        
+        print("✅ Fuel types response validation passed")
+        return True
+
+    # ===== VEHICLE CRUD TESTS =====
+    
+    def test_get_vehicles(self):
+        """Test getting user's vehicles"""
+        success, response = self.run_test(
+            "Get User Vehicles",
+            "GET",
+            "vehicles",
+            200,
+            auth_required=True
+        )
+        return success, response
+    
+    def test_get_active_vehicle(self):
+        """Test getting active vehicle"""
+        success, response = self.run_test(
+            "Get Active Vehicle",
+            "GET",
+            "vehicles/active",
+            200,
+            auth_required=True
+        )
+        return success, response
+    
+    def test_create_vehicle(self):
+        """Test creating a new vehicle"""
+        vehicle_data = {
+            "name": "Test Araç",
+            "plate": "34 TEST 123",
+            "fuel_type": "Benzin",
+            "starting_km": 50000,
+            "is_active": True
+        }
+        success, response = self.run_test(
+            "Create Vehicle",
+            "POST",
+            "vehicles",
+            200,
+            data=vehicle_data,
+            auth_required=True
+        )
+        return success, response
+    
+    def test_get_vehicle_by_id(self, vehicle_id):
+        """Test getting a specific vehicle"""
+        success, response = self.run_test(
+            "Get Vehicle by ID",
+            "GET",
+            f"vehicles/{vehicle_id}",
+            200,
+            auth_required=True
+        )
+        return success, response
+    
+    def test_update_vehicle(self, vehicle_id):
+        """Test updating a vehicle"""
+        update_data = {
+            "name": "Updated Test Araç",
+            "fuel_type": "Dizel",
+            "is_active": True
+        }
+        success, response = self.run_test(
+            "Update Vehicle",
+            "PUT",
+            f"vehicles/{vehicle_id}",
+            200,
+            data=update_data,
+            auth_required=True
+        )
+        return success, response
+    
+    def test_delete_vehicle(self, vehicle_id):
+        """Test deleting a vehicle"""
+        success, response = self.run_test(
+            "Delete Vehicle",
+            "DELETE",
+            f"vehicles/{vehicle_id}",
+            200,
+            auth_required=True
+        )
+        return success, response
+    
+    def validate_vehicle_response(self, response, action="get"):
+        """Validate vehicle API responses"""
+        print(f"\n🔍 Validating vehicle {action} response...")
+        
+        if action == "create" or action == "get" or action == "update":
+            required_fields = ['id', 'user_id', 'name', 'fuel_type', 'starting_km', 'is_active']
+            
+            for field in required_fields:
+                if field not in response:
+                    print(f"❌ Missing field '{field}' in vehicle response")
+                    return False
+            
+            # Validate fuel_type is valid
+            valid_fuel_types = ["Benzin", "Dizel", "LPG", "Elektrik", "Hibrit"]
+            if response.get('fuel_type') not in valid_fuel_types:
+                print(f"❌ Invalid fuel_type: {response.get('fuel_type')}")
+                return False
+                
+        elif action == "delete":
+            if 'message' not in response:
+                print(f"❌ Missing message field in delete response")
+                return False
+        
+        print(f"✅ Vehicle {action} response validation passed")
+        return True
+
+    # ===== FUEL RECORDS TESTS =====
+    
+    def test_get_fuel_records(self, vehicle_id=None):
+        """Test getting fuel records"""
+        params = {}
+        if vehicle_id:
+            params['vehicle_id'] = vehicle_id
+            
+        success, response = self.run_test(
+            "Get Fuel Records",
+            "GET",
+            "fuel-records",
+            200,
+            params=params,
+            auth_required=True
+        )
+        return success, response
+    
+    def test_create_fuel_record(self, vehicle_id):
+        """Test creating a fuel record"""
+        fuel_data = {
+            "vehicle_id": vehicle_id,
+            "date": "2024-01-15",
+            "current_km": 51000,
+            "liters": 45.5,
+            "amount": 850.75,
+            "note": "Test yakıt kaydı"
+        }
+        success, response = self.run_test(
+            "Create Fuel Record",
+            "POST",
+            "fuel-records",
+            200,
+            data=fuel_data,
+            auth_required=True
+        )
+        return success, response
+    
+    def test_delete_fuel_record(self, record_id):
+        """Test deleting a fuel record"""
+        success, response = self.run_test(
+            "Delete Fuel Record",
+            "DELETE",
+            f"fuel-records/{record_id}",
+            200,
+            auth_required=True
+        )
+        return success, response
+    
+    def validate_fuel_record_response(self, response, action="get"):
+        """Validate fuel record API responses"""
+        print(f"\n🔍 Validating fuel record {action} response...")
+        
+        if action == "create" or action == "get":
+            required_fields = ['id', 'user_id', 'vehicle_id', 'date', 'current_km', 'liters', 'amount']
+            calculated_fields = ['distance_since_last', 'consumption_per_100km', 'cost_per_km']
+            
+            for field in required_fields:
+                if field not in response:
+                    print(f"❌ Missing field '{field}' in fuel record response")
+                    return False
+            
+            # Check that calculated fields exist (can be None for first record)
+            for field in calculated_fields:
+                if field not in response:
+                    print(f"❌ Missing calculated field '{field}' in fuel record response")
+                    return False
+                    
+        elif action == "delete":
+            if 'message' not in response:
+                print(f"❌ Missing message field in delete response")
+                return False
+        
+        print(f"✅ Fuel record {action} response validation passed")
+        return True
+
+    # ===== DAILY KM TESTS =====
+    
+    def test_get_daily_km_records(self, vehicle_id=None):
+        """Test getting daily KM records"""
+        params = {}
+        if vehicle_id:
+            params['vehicle_id'] = vehicle_id
+            
+        success, response = self.run_test(
+            "Get Daily KM Records",
+            "GET",
+            "daily-km",
+            200,
+            params=params,
+            auth_required=True
+        )
+        return success, response
+    
+    def test_get_today_km(self):
+        """Test getting today's KM record"""
+        success, response = self.run_test(
+            "Get Today KM Record",
+            "GET",
+            "daily-km/today",
+            200,
+            auth_required=True
+        )
+        return success, response
+    
+    def test_create_daily_km_record(self, vehicle_id):
+        """Test creating a daily KM record"""
+        km_data = {
+            "vehicle_id": vehicle_id,
+            "date": "2024-01-15",
+            "start_km": 51000,
+            "end_km": 51150
+        }
+        success, response = self.run_test(
+            "Create Daily KM Record",
+            "POST",
+            "daily-km",
+            200,
+            data=km_data,
+            auth_required=True
+        )
+        return success, response
+    
+    def test_update_daily_km_record(self, record_id):
+        """Test updating a daily KM record"""
+        update_data = {
+            "end_km": 51200
+        }
+        success, response = self.run_test(
+            "Update Daily KM Record",
+            "PUT",
+            f"daily-km/{record_id}",
+            200,
+            data=update_data,
+            auth_required=True
+        )
+        return success, response
+    
+    def validate_daily_km_response(self, response, action="get"):
+        """Validate daily KM API responses"""
+        print(f"\n🔍 Validating daily KM {action} response...")
+        
+        if action == "create" or action == "get" or action == "update":
+            required_fields = ['id', 'user_id', 'vehicle_id', 'date', 'start_km']
+            calculated_fields = ['daily_km', 'avg_cost_per_km', 'daily_cost']
+            
+            for field in required_fields:
+                if field not in response:
+                    print(f"❌ Missing field '{field}' in daily KM response")
+                    return False
+            
+            # Check that calculated fields exist (can be None)
+            for field in calculated_fields:
+                if field not in response:
+                    print(f"❌ Missing calculated field '{field}' in daily KM response")
+                    return False
+        
+        print(f"✅ Daily KM {action} response validation passed")
+        return True
+
+    # ===== VEHICLE STATS TESTS =====
+    
+    def test_get_vehicle_stats(self, vehicle_id):
+        """Test getting vehicle statistics"""
+        success, response = self.run_test(
+            "Get Vehicle Stats",
+            "GET",
+            f"vehicle-stats/{vehicle_id}",
+            200,
+            auth_required=True
+        )
+        return success, response
+    
+    def validate_vehicle_stats_response(self, response):
+        """Validate vehicle stats API response"""
+        print("\n🔍 Validating vehicle stats response...")
+        
+        required_fields = ['vehicle', 'total_fuel_cost', 'monthly_fuel_cost', 'total_liters', 'avg_cost_per_km', 'avg_consumption_per_100km']
+        
+        for field in required_fields:
+            if field not in response:
+                print(f"❌ Missing field '{field}' in vehicle stats response")
+                return False
+        
+        # Check vehicle object
+        vehicle = response.get('vehicle', {})
+        if not vehicle or 'id' not in vehicle:
+            print("❌ Invalid vehicle object in stats response")
+            return False
+        
+        print("✅ Vehicle stats response validation passed")
+        return True
+
 def main():
     print("🚀 Starting Turkish Customer Visit Tracking API Tests - FAZ 3.0")
     print("=" * 70)
