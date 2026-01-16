@@ -236,8 +236,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "FAZ 4 - Araç & Yakıt Modülü tam test"
-    - "Mevcut özelliklerin çalıştığını doğrula"
+    - "FAZ 4 - Frontend testing needed"
+    - "Minor: PDF report JSON parsing issue"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
