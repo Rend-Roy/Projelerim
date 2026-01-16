@@ -191,6 +191,21 @@ frontend:
       - working: true
         agent: "main"
         comment: "Sol üst köşede hamburger menü, slide-out drawer ile Araç & Yakıt ve Günlük KM menüleri."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive FAZ 4 Hamburger Menu testing completed successfully. Hamburger button (☰) in top left header opens drawer correctly. Drawer displays 'Ek Modüller' title with two menu items: 'Araç & Yakıt Takibi' and 'Günlük KM Kayıtları'. Both menu items navigate correctly to their respective pages (/vehicles and /daily-km). Drawer closes properly when clicking overlay. All navigation functionality working as specified."
+
+  - task: "FAZ 4 - Vehicle Stats Page"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/VehicleStatsPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive FAZ 4 Vehicle Stats Page testing completed successfully. Navigation working via vehicle card 'İstatistikler' button. All 5 required statistics displayed correctly: 'Toplam Yakıt Gideri', 'Bu Ay Gideri', 'Toplam Yakıt', 'KM Başı Maliyet', and '100 km Tüketim'. Vehicle information (name, plate, fuel type) displayed in header. All stats functionality working as expected."
 
   - task: "FAZ 4 - Vehicles Page"
     implemented: true
