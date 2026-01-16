@@ -174,16 +174,23 @@ export default function CustomerDetailPage() {
 
   const handleSave = async () => {
     if (!visit) return;
+    
+    // Ziyaret Edilmedi seçiliyse sebep zorunlu
+    if (visitStatus === "not_visited" && !visitSkipReason) {
+      toast.error("Ziyaret edilmeme sebebi seçiniz");
+      return;
+    }
 
     setSaving(true);
     try {
       await axios.put(`${API}/visits/${visit.id}`, {
-        completed,
-        visit_skip_reason: !completed ? visitSkipReason : null,
-        payment_collected: paymentCollected,
-        payment_skip_reason: !paymentCollected ? paymentSkipReason : null,
-        payment_type: paymentCollected ? paymentType : null,
-        payment_amount: paymentCollected && paymentAmount ? parseFloat(paymentAmount) : null,
+        status: visitStatus,
+        completed: visitStatus === "visited",
+        visit_skip_reason: visitStatus === "not_visited" ? visitSkipReason : null,
+        payment_collected: visitStatus === "visited" ? paymentCollected : false,
+        payment_skip_reason: (visitStatus === "visited" && !paymentCollected) ? paymentSkipReason : null,
+        payment_type: (visitStatus === "visited" && paymentCollected) ? paymentType : null,
+        payment_amount: (visitStatus === "visited" && paymentCollected && paymentAmount) ? parseFloat(paymentAmount) : null,
         customer_request: customerRequest || null,
         note: note || null,
         quality_rating: qualityRating > 0 ? qualityRating : null,
