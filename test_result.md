@@ -104,7 +104,145 @@
 
 user_problem_statement: |
   Satış temsilcisi için günlük müşteri ziyareti takip uygulaması (Türkçe).
-  FAZ 3.0 - Çok kullanıcılı (multi-user) login altyapısı eklendi.
+  FAZ 4 - Araç, Yakıt ve Günlük KM Maliyeti modülü eklendi.
+
+backend:
+  - task: "FAZ 4 - Vehicle CRUD API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Araç ekleme, güncelleme, silme, listeleme ve aktif araç endpoint'leri çalışıyor."
+
+  - task: "FAZ 4 - Fuel Records API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Yakıt kaydı ekleme, silme, listeleme. Otomatik hesaplamalar: gidilen km, 100km tüketim, km başı maliyet."
+
+  - task: "FAZ 4 - Daily KM API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Günlük KM kaydı oluşturma/güncelleme. Otomatik maliyet hesaplama (son 30 gün ortalaması)."
+
+  - task: "FAZ 4 - Vehicle Stats API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Araç istatistikleri: toplam yakıt gideri, bu ay gideri, ortalama tüketim, km başı maliyet."
+
+frontend:
+  - task: "FAZ 4 - Hamburger Menu & Drawer"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/MobileLayout.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Sol üst köşede hamburger menü, slide-out drawer ile Araç & Yakıt ve Günlük KM menüleri."
+
+  - task: "FAZ 4 - Vehicles Page"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/VehiclesPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Araç listesi, ekleme/düzenleme dialog'u, silme, aktif araç gösterimi çalışıyor."
+
+  - task: "FAZ 4 - Fuel Records Page"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/FuelRecordsPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Yakıt kayıtları listesi, ekleme dialog'u, istatistikler, hesaplanan değerler görünüyor."
+
+  - task: "FAZ 4 - Daily KM Page"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/DailyKmPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Bugünkü kayıt formu, aktif araç otomatik seçili, günlük km ve maliyet hesaplama, son kayıtlar."
+
+metadata:
+  created_by: "main_agent"
+  version: "4.0"
+  test_sequence: 6
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "FAZ 4 - Araç & Yakıt Modülü tam test"
+    - "Mevcut özelliklerin çalıştığını doğrula"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      FAZ 4 Araç & Yakıt Takibi modülü tamamlandı. Test edilmesi gerekenler:
+      
+      1. BACKEND TESTLERİ:
+         - GET /api/fuel-types - Yakıt türleri listesi
+         - POST/GET/PUT/DELETE /api/vehicles - Araç CRUD
+         - GET /api/vehicles/active - Aktif araç
+         - POST/GET/DELETE /api/fuel-records - Yakıt kayıtları
+         - POST/PUT/GET /api/daily-km - Günlük KM
+         - GET /api/vehicle-stats/{id} - İstatistikler
+         
+      2. FRONTEND TESTLERİ:
+         - Hamburger menü açılması
+         - Araç ekleme/düzenleme/silme
+         - Yakıt kaydı ekleme
+         - Günlük KM girişi
+         - Otomatik maliyet hesaplama
+         
+      3. GERİYE UYUMLULUK:
+         - Bugün sayfası çalışıyor mu?
+         - Müşteri uyarıları görünüyor mu?
+         - Performans sayfası çalışıyor mu?
+         - PDF rapor indiriliyor mu?
 
 backend:
   - task: "FAZ 3.0 - Authentication System"
