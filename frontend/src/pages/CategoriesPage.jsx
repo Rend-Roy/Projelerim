@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { FolderOpen, Plus, Edit, Trash2, Package } from "lucide-react";
+import { FolderOpen, Plus, Edit, Trash2, Package, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -27,6 +28,7 @@ import MobileLayout from "@/components/MobileLayout";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function CategoriesPage() {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   
