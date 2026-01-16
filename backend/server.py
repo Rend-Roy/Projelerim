@@ -192,13 +192,18 @@ class RegionUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
 
+# Ziyaret durumu seçenekleri
+VISIT_STATUS_OPTIONS = ["pending", "visited", "not_visited"]
+
 class Visit(BaseModel):
     model_config = ConfigDict(extra="ignore")
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     customer_id: str
     date: str  # YYYY-MM-DD format
-    completed: bool = False
+    # Yeni status alanı: pending (bekliyor), visited (ziyaret edildi), not_visited (ziyaret edilmedi)
+    status: str = "pending"
+    completed: bool = False  # Geriye uyumluluk için korunuyor
     visit_skip_reason: Optional[str] = None  # Ziyaret edilmediyse sebebi
     payment_collected: bool = False  # Tahsilat yapıldı mı
     payment_skip_reason: Optional[str] = None  # Tahsilat yapılmadıysa sebebi
@@ -216,7 +221,8 @@ class Visit(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class VisitUpdate(BaseModel):
-    completed: Optional[bool] = None
+    status: Optional[str] = None  # pending, visited, not_visited
+    completed: Optional[bool] = None  # Geriye uyumluluk
     visit_skip_reason: Optional[str] = None
     payment_collected: Optional[bool] = None
     payment_skip_reason: Optional[str] = None
