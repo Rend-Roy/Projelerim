@@ -2307,6 +2307,355 @@ async def generate_daily_report_pdf(
         }
     )
 
+# =========================================================================
+# DÖNEM RAPORU - Haftalık/Aylık Özet PDF
+# =========================================================================
+@api_router.get("/report/pdf/period/{period_type}")
+async def generate_period_report_pdf(
+    period_type: str,  # "weekly" or "monthly"
+    start_date: str = None,  # Optional custom start date
+    end_date: str = None,    # Optional custom end date
+    current_user: dict = Depends(require_auth)
+):
+    """Generate weekly or monthly performance summary PDF report"""
+    
+    user_name = current_user.get("name", "Satış Temsilcisi")
+    user_email = current_user.get("email", "")
+    
+    # Calculate date range
+    today = datetime.now(timezone.utc).date()
+    
+    if start_date and end_date:
+        period_start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        period_end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    elif period_type == "weekly":
+        # Current week (Monday to Sunday)
+        days_since_monday = today.weekday()
+        period_start = today - timedelta(days=days_since_monday)
+        period_end = period_start + timedelta(days=6)
+    else:  # monthly
+        period_start = today.replace(day=1)
+        if today.month == 12:
+            next_month = today.replace(year=today.year + 1, month=1, day=1)
+        else:
+            next_month = today.replace(month=today.month + 1, day=1)
+        period_end = next_month - timedelta(days=1)
+    
+    start_str = period_start.isoformat()
+    end_str = period_end.isoformat()
+    
+    # Get all visits in date range
+    visits = await db.visits.find({
+        "user_id": current_user["id"],
+        "date": {"$gte": start_str, "$lte": end_str}
+    }, {"_id": 0}).to_list(10000)
+    
+    # Apply migration for status
+    for v in visits:
+        migrate_visit_status(v)
+    
+    # Get all customers
+    customers = await db.customers.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(1000)
+    
+    # Get daily KM records
+    daily_km_records = await db.daily_km_records.find({
+        "user_id": current_user["id"],
+        "date": {"$gte": start_str, "$lte": end_str}
+    }, {"_id": 0}).to_list(1000)
+    
+    # Get fuel records
+    fuel_records = await db.fuel_records.find({
+        "user_id": current_user["id"],
+        "date": {"$gte": start_str, "$lte": end_str}
+    }, {"_id": 0}).to_list(1000)
+    
+    # Calculate statistics
+    total_visits = len(visits)
+    visited_count = sum(1 for v in visits if v.get("status") == "visited")
+    not_visited_count = sum(1 for v in visits if v.get("status") == "not_visited")
+    pending_count = total_visits - visited_count - not_visited_count
+    visit_rate = round((visited_count / total_visits * 100), 1) if total_visits > 0 else 0
+    
+    # Payment stats
+    total_payment = 0
+    payment_count = 0
+    payment_by_type = {"Nakit": 0, "Kredi Kartı": 0, "Havale/EFT": 0, "Çek": 0, "Diğer": 0}
+    
+    for v in visits:
+        if v.get("payment_collected"):
+            payment_count += 1
+            amount = v.get("payment_amount", 0) or 0
+            total_payment += amount
+            ptype = v.get("payment_type", "Diğer")
+            if ptype in payment_by_type:
+                payment_by_type[ptype] += amount
+            else:
+                payment_by_type["Diğer"] += amount
+    
+    # Working days (unique dates with visits)
+    unique_dates = set(v.get("date") for v in visits if v.get("date"))
+    working_days = len(unique_dates)
+    
+    # Daily averages
+    avg_daily_visits = round(visited_count / working_days, 1) if working_days > 0 else 0
+    avg_daily_payment = round(total_payment / working_days, 2) if working_days > 0 else 0
+    
+    # Vehicle/Fuel stats
+    total_km = sum(r.get("daily_km", 0) or 0 for r in daily_km_records)
+    total_fuel_cost = sum(r.get("amount", 0) or 0 for r in fuel_records)
+    avg_km_cost = round(total_fuel_cost / total_km, 3) if total_km > 0 else 0
+    
+    # Daily data for charts
+    daily_data = {}
+    for v in visits:
+        date = v.get("date")
+        if date:
+            if date not in daily_data:
+                daily_data[date] = {"visited": 0, "not_visited": 0, "payment": 0}
+            if v.get("status") == "visited":
+                daily_data[date]["visited"] += 1
+            elif v.get("status") == "not_visited":
+                daily_data[date]["not_visited"] += 1
+            if v.get("payment_collected"):
+                daily_data[date]["payment"] += v.get("payment_amount", 0) or 0
+    
+    # Sort daily data by date
+    sorted_dates = sorted(daily_data.keys())
+    
+    # Create PDF
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_font("DejaVu", "", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", uni=True)
+    pdf.add_font("DejaVu", "B", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", uni=True)
+    
+    # =========================================================================
+    # SAYFA 1: DÖNEM ÖZETİ
+    # =========================================================================
+    pdf.add_page()
+    
+    # Header
+    period_label = "HAFTALIK" if period_type == "weekly" else "AYLIK"
+    pdf.set_font("DejaVu", "B", 18)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 10, f"{period_label} PERFORMANS RAPORU", ln=True, align="C")
+    
+    pdf.set_font("DejaVu", "", 11)
+    pdf.set_text_color(71, 85, 105)
+    pdf.cell(0, 7, f"{period_start.strftime('%d.%m.%Y')} - {period_end.strftime('%d.%m.%Y')}", ln=True, align="C")
+    
+    pdf.ln(3)
+    pdf.set_font("DejaVu", "B", 11)
+    pdf.set_text_color(0, 85, 255)
+    pdf.cell(0, 6, f"Satış Temsilcisi: {user_name}", ln=True, align="C")
+    if user_email:
+        pdf.set_font("DejaVu", "", 9)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(0, 5, user_email, ln=True, align="C")
+    
+    pdf.ln(8)
+    
+    # Çalışma Özeti
+    pdf.set_fill_color(248, 250, 252)
+    pdf.set_draw_color(226, 232, 240)
+    box_y = pdf.get_y()
+    pdf.rect(10, box_y, 190, 25, "DF")
+    
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.set_text_color(15, 23, 42)
+    pdf.set_xy(15, box_y + 5)
+    pdf.cell(60, 6, f"Çalışılan Gün: {working_days}")
+    pdf.cell(60, 6, f"Toplam Müşteri: {len(customers)}")
+    pdf.cell(60, 6, f"Toplam Ziyaret Kaydı: {total_visits}")
+    
+    pdf.set_y(box_y + 30)
+    
+    # ===== ZİYARET PERFORMANSI =====
+    pdf.set_font("DejaVu", "B", 12)
+    pdf.set_text_color(22, 163, 74)
+    pdf.cell(0, 8, "ZİYARET PERFORMANSI", ln=True)
+    
+    pdf.set_fill_color(220, 252, 231)
+    pdf.set_draw_color(134, 239, 172)
+    box_y = pdf.get_y()
+    pdf.rect(10, box_y, 190, 40, "DF")
+    
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_text_color(22, 101, 52)
+    
+    pdf.set_xy(15, box_y + 5)
+    pdf.cell(60, 6, f"Ziyaret Edilen: {visited_count}")
+    pdf.cell(60, 6, f"Ziyaret Edilmeyen: {not_visited_count}")
+    pdf.cell(60, 6, f"Bekleyen: {pending_count}")
+    
+    pdf.set_xy(15, box_y + 14)
+    pdf.set_font("DejaVu", "B", 11)
+    pdf.cell(60, 6, f"Ziyaret Oranı: %{visit_rate}")
+    pdf.set_font("DejaVu", "", 10)
+    pdf.cell(60, 6, f"Günlük Ort. Ziyaret: {avg_daily_visits}")
+    
+    pdf.set_y(box_y + 45)
+    
+    # ===== TAHSİLAT PERFORMANSI =====
+    pdf.set_font("DejaVu", "B", 12)
+    pdf.set_text_color(0, 85, 255)
+    pdf.cell(0, 8, "TAHSİLAT PERFORMANSI", ln=True)
+    
+    pdf.set_fill_color(219, 234, 254)
+    pdf.set_draw_color(147, 197, 253)
+    box_y = pdf.get_y()
+    pdf.rect(10, box_y, 190, 50, "DF")
+    
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_text_color(30, 64, 175)
+    
+    pdf.set_xy(15, box_y + 5)
+    pdf.cell(90, 6, f"Tahsilat Yapılan Müşteri: {payment_count}")
+    pdf.cell(90, 6, f"Günlük Ort. Tahsilat: {avg_daily_payment:,.2f} TL")
+    
+    pdf.set_xy(15, box_y + 14)
+    pdf.set_font("DejaVu", "B", 14)
+    pdf.cell(0, 8, f"TOPLAM TAHSİLAT: {total_payment:,.2f} TL", ln=True)
+    
+    # Payment breakdown
+    pdf.set_font("DejaVu", "", 9)
+    pdf.set_xy(15, box_y + 28)
+    col_x = 15
+    for ptype, amount in payment_by_type.items():
+        if amount > 0:
+            pdf.set_xy(col_x, box_y + 28)
+            pdf.cell(45, 5, f"{ptype}: {amount:,.0f} TL")
+            col_x += 45
+            if col_x > 160:
+                col_x = 15
+                pdf.ln(6)
+    
+    pdf.set_y(box_y + 55)
+    
+    # ===== ARAÇ/YAKIT ÖZETİ =====
+    if total_km > 0 or total_fuel_cost > 0:
+        pdf.set_font("DejaVu", "B", 12)
+        pdf.set_text_color(113, 63, 18)
+        pdf.cell(0, 8, "ARAÇ / YAKIT ÖZETİ", ln=True)
+        
+        pdf.set_fill_color(254, 252, 232)
+        pdf.set_draw_color(250, 204, 21)
+        box_y = pdf.get_y()
+        pdf.rect(10, box_y, 190, 25, "DF")
+        
+        pdf.set_font("DejaVu", "", 10)
+        pdf.set_text_color(113, 63, 18)
+        
+        pdf.set_xy(15, box_y + 5)
+        pdf.cell(60, 6, f"Toplam KM: {total_km:,.0f} km")
+        pdf.cell(60, 6, f"Toplam Yakıt: {total_fuel_cost:,.2f} TL")
+        pdf.cell(60, 6, f"Ort. KM Maliyeti: {avg_km_cost:.3f} TL/km")
+        
+        pdf.set_y(box_y + 30)
+    
+    # =========================================================================
+    # SAYFA 2: GÜNLÜK DETAY TABLOSU
+    # =========================================================================
+    if sorted_dates:
+        pdf.add_page()
+        
+        pdf.set_font("DejaVu", "B", 14)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(0, 10, "GÜNLÜK PERFORMANS DETAYI", ln=True)
+        pdf.ln(2)
+        
+        # Tablo başlığı
+        pdf.set_fill_color(241, 245, 249)
+        pdf.set_draw_color(203, 213, 225)
+        pdf.set_font("DejaVu", "B", 9)
+        pdf.set_text_color(15, 23, 42)
+        
+        pdf.cell(30, 8, "Tarih", border=1, fill=True, align="C")
+        pdf.cell(25, 8, "Gün", border=1, fill=True, align="C")
+        pdf.cell(30, 8, "Ziyaret", border=1, fill=True, align="C")
+        pdf.cell(30, 8, "Edilmedi", border=1, fill=True, align="C")
+        pdf.cell(35, 8, "Oran", border=1, fill=True, align="C")
+        pdf.cell(40, 8, "Tahsilat", border=1, fill=True, align="C", ln=True)
+        
+        # Türkçe gün isimleri
+        gun_isimleri = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+        
+        pdf.set_font("DejaVu", "", 8)
+        for date_str in sorted_dates:
+            if pdf.get_y() > 260:
+                pdf.add_page()
+                pdf.set_fill_color(241, 245, 249)
+                pdf.set_font("DejaVu", "B", 9)
+                pdf.cell(30, 8, "Tarih", border=1, fill=True, align="C")
+                pdf.cell(25, 8, "Gün", border=1, fill=True, align="C")
+                pdf.cell(30, 8, "Ziyaret", border=1, fill=True, align="C")
+                pdf.cell(30, 8, "Edilmedi", border=1, fill=True, align="C")
+                pdf.cell(35, 8, "Oran", border=1, fill=True, align="C")
+                pdf.cell(40, 8, "Tahsilat", border=1, fill=True, align="C", ln=True)
+                pdf.set_font("DejaVu", "", 8)
+            
+            data = daily_data[date_str]
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            gun_adi = gun_isimleri[date_obj.weekday()]
+            
+            total_day = data["visited"] + data["not_visited"]
+            day_rate = round((data["visited"] / total_day * 100), 0) if total_day > 0 else 0
+            
+            pdf.set_fill_color(255, 255, 255)
+            pdf.set_text_color(15, 23, 42)
+            
+            pdf.cell(30, 7, date_obj.strftime("%d.%m"), border=1, align="C")
+            pdf.cell(25, 7, gun_adi[:3], border=1, align="C")
+            
+            pdf.set_text_color(22, 163, 74)
+            pdf.cell(30, 7, str(data["visited"]), border=1, align="C")
+            
+            pdf.set_text_color(220, 38, 38)
+            pdf.cell(30, 7, str(data["not_visited"]), border=1, align="C")
+            
+            pdf.set_text_color(0, 85, 255)
+            pdf.cell(35, 7, f"%{day_rate:.0f}", border=1, align="C")
+            
+            pdf.set_text_color(15, 23, 42)
+            pdf.cell(40, 7, f"{data['payment']:,.0f} TL", border=1, align="C", ln=True)
+        
+        # Toplam satırı
+        pdf.set_font("DejaVu", "B", 9)
+        pdf.set_fill_color(241, 245, 249)
+        pdf.cell(30, 8, "TOPLAM", border=1, fill=True, align="C")
+        pdf.cell(25, 8, f"{working_days} gün", border=1, fill=True, align="C")
+        pdf.set_text_color(22, 163, 74)
+        pdf.cell(30, 8, str(visited_count), border=1, fill=True, align="C")
+        pdf.set_text_color(220, 38, 38)
+        pdf.cell(30, 8, str(not_visited_count), border=1, fill=True, align="C")
+        pdf.set_text_color(0, 85, 255)
+        pdf.cell(35, 8, f"%{visit_rate}", border=1, fill=True, align="C")
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(40, 8, f"{total_payment:,.0f} TL", border=1, fill=True, align="C", ln=True)
+    
+    # Footer
+    pdf.ln(10)
+    pdf.set_font("DejaVu", "", 7)
+    pdf.set_text_color(148, 163, 184)
+    report_date = datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M')
+    pdf.cell(0, 4, f"Rapor: {report_date} UTC | {user_name} | Satış Takip Sistemi", ln=True, align="C")
+    
+    # Output PDF
+    pdf_output = io.BytesIO()
+    pdf_content = pdf.output()
+    pdf_output.write(pdf_content)
+    pdf_output.seek(0)
+    
+    period_label_file = "haftalik" if period_type == "weekly" else "aylik"
+    filename = f"performans_raporu_{period_label_file}_{period_start.strftime('%Y%m%d')}.pdf"
+    
+    return StreamingResponse(
+        pdf_output,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
+
 # Include the router in the main app
 app.include_router(api_router)
 
