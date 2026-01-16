@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { 
   Search, Package, Plus, Filter, Upload, ChevronRight,
-  Grid, List, ImageOff
+  Grid, List, ImageOff, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
