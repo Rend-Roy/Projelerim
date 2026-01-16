@@ -14,6 +14,11 @@ import RegionDetailPage from "@/pages/RegionDetailPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
+// FAZ 4: Araç & Yakıt Modülü
+import VehiclesPage from "@/pages/VehiclesPage";
+import FuelRecordsPage from "@/pages/FuelRecordsPage";
+import DailyKmPage from "@/pages/DailyKmPage";
+import VehicleStatsPage from "@/pages/VehicleStatsPage";
 
 function App() {
   return (
@@ -41,6 +46,11 @@ function App() {
                       <Route path="/customer/:id" element={<CustomerDetailPage />} />
                       <Route path="/customer/new" element={<CustomerFormPage />} />
                       <Route path="/customer/:id/edit" element={<CustomerFormPage />} />
+                      {/* FAZ 4: Araç & Yakıt Modülü */}
+                      <Route path="/vehicles" element={<VehiclesPage />} />
+                      <Route path="/fuel-records" element={<FuelRecordsPage />} />
+                      <Route path="/daily-km" element={<DailyKmPage />} />
+                      <Route path="/vehicle-stats/:id" element={<VehicleStatsPage />} />
                     </Routes>
                   </MobileLayout>
                 </ProtectedRoute>
