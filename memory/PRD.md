@@ -109,6 +109,14 @@ Satış temsilcileri için çok kullanıcılı, günlük müşteri ziyaretlerini
 - [x] Frontend: Dropdown'dan kategori seçince URL güncelleme
 - [x] 100% test başarısı (backend + frontend)
 
+### Logo Entegrasyonu & Layout Düzeltmesi (Tamamlandı - 18 Ocak 2026)
+- [x] Logo oluşturuldu ve /public/logo.svg'ye eklendi
+- [x] Header'da logo + "Saha Yönetim" metni
+- [x] Side Drawer'da logo + "Saha Yönetim" metni
+- [x] Login sayfasında logo
+- [x] Çift header sorunu çözüldü (tüm sayfalarda tek global header)
+- [x] Semantic HTML düzeltmesi (sayfa içi <header> → <div>)
+
 ## Tech Stack
 - **Backend**: FastAPI (Python) + MongoDB (Motor async)
 - **Frontend**: React + Tailwind CSS + Shadcn UI
