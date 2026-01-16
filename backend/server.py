@@ -1945,14 +1945,14 @@ async def get_vehicle_stats(vehicle_id: str, current_user: dict = Depends(requir
         "fuel_record_count": len(fuel_records)
     }
 
-# PDF Report endpoint - FAZ 3.2: user_id filtresi eklendi (require_auth kullanılıyor)
+# PDF Report endpoint - Profesyonel, Kompakt, Tablo Bazlı Format
 @api_router.get("/report/pdf/{day_name}/{date}")
 async def generate_daily_report_pdf(
     day_name: str, 
     date: str,
     current_user: dict = Depends(require_auth)
 ):
-    """Generate comprehensive daily visit report as PDF"""
+    """Generate professional daily visit report as PDF - compact table format"""
     
     # Kullanıcı bilgisi al
     user_name = current_user.get("name", "Satış Temsilcisi")
@@ -1966,17 +1966,27 @@ async def generate_daily_report_pdf(
     
     # Get visits for this date (only user's visits)
     visits = await db.visits.find({"date": date, "user_id": current_user["id"]}, {"_id": 0}).to_list(1000)
+    
+    # Apply migration to visits for status field
+    for v in visits:
+        migrate_visit_status(v)
+    
     visits_map = {v["customer_id"]: v for v in visits}
     
-    # Get new customers added today (only user's customers)
-    all_customers = await db.customers.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(1000)
-    new_customers = []
-    for c in all_customers:
-        created = c.get('created_at', '')
-        if isinstance(created, str) and created.startswith(date):
-            new_customers.append(c)
-        elif hasattr(created, 'strftime') and created.strftime('%Y-%m-%d') == date:
-            new_customers.append(c)
+    # Kategorize customers by visit status
+    visited_customers = []
+    not_visited_customers = []
+    pending_customers = []
+    
+    for c in customers:
+        visit = visits_map.get(c["id"], {})
+        status = visit.get("status", "pending")
+        if status == "visited":
+            visited_customers.append((c, visit))
+        elif status == "not_visited":
+            not_visited_customers.append((c, visit))
+        else:
+            pending_customers.append((c, visit))
     
     # Get daily note (only user's note)
     daily_note = await db.daily_notes.find_one({"date": date, "user_id": current_user["id"]}, {"_id": 0})
@@ -1984,339 +1994,302 @@ async def generate_daily_report_pdf(
     
     # Calculate stats
     total_count = len(customers)
-    completed_count = sum(1 for c in customers if visits_map.get(c["id"], {}).get("completed", False))
-    pending_count = total_count - completed_count
+    visited_count = len(visited_customers)
+    not_visited_count = len(not_visited_customers)
+    pending_count_stat = len(pending_customers)
+    visit_rate = round((visited_count / total_count * 100), 1) if total_count > 0 else 0
     
     # Calculate payment stats
     total_payment = 0
     payment_count = 0
-    for c in customers:
-        visit = visits_map.get(c["id"], {})
+    for c, visit in visited_customers:
         if visit.get("payment_collected"):
             payment_count += 1
             total_payment += visit.get("payment_amount", 0) or 0
     
+    # Get vehicle/km data
+    daily_km_record = await db.daily_km_records.find_one(
+        {"user_id": current_user["id"], "date": date},
+        {"_id": 0}
+    )
+    vehicle = None
+    if daily_km_record:
+        vehicle = await db.vehicles.find_one(
+            {"id": daily_km_record.get("vehicle_id")},
+            {"_id": 0}
+        )
+    
     # Create PDF
     pdf = FPDF()
-    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
     
     # Add Unicode font for Turkish characters
     pdf.add_font("DejaVu", "", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", uni=True)
     pdf.add_font("DejaVu", "B", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", uni=True)
     
-    # ===== HEADER =====
-    pdf.set_font("DejaVu", "B", 20)
+    # =========================================================================
+    # SAYFA 1: YÖNETİCİ ÖZETİ
+    # =========================================================================
+    pdf.add_page()
+    
+    # Header
+    pdf.set_font("DejaVu", "B", 18)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 12, "GÜNLÜK MÜŞTERİ ZİYARET RAPORU", ln=True, align="C")
+    pdf.cell(0, 10, "GÜNLÜK ZİYARET RAPORU", ln=True, align="C")
     
     pdf.set_font("DejaVu", "", 12)
     pdf.set_text_color(71, 85, 105)
-    pdf.cell(0, 8, f"{day_name}, {date}", ln=True, align="C")
+    pdf.cell(0, 7, f"{day_name}, {date}", ln=True, align="C")
     
-    # FAZ 3.1: Kullanıcı Bilgisi
     pdf.ln(3)
-    pdf.set_font("DejaVu", "", 10)
-    pdf.set_text_color(100, 116, 139)
+    pdf.set_font("DejaVu", "B", 11)
+    pdf.set_text_color(0, 85, 255)
     pdf.cell(0, 6, f"Satış Temsilcisi: {user_name}", ln=True, align="C")
     if user_email:
-        pdf.cell(0, 5, f"E-posta: {user_email}", ln=True, align="C")
-    
-    pdf.ln(5)
-    
-    # ===== ÖZET BÖLÜMÜ =====
-    pdf.set_fill_color(241, 245, 249)
-    pdf.set_draw_color(203, 213, 225)
-    pdf.rect(10, pdf.get_y(), 190, 45, "DF")
-    
-    y_start = pdf.get_y() + 5
-    
-    # Sol kolon - Ziyaret özeti
-    pdf.set_font("DejaVu", "B", 12)
-    pdf.set_text_color(15, 23, 42)
-    pdf.set_xy(15, y_start)
-    pdf.cell(80, 7, "ZİYARET ÖZETİ", ln=True)
-    
-    pdf.set_font("DejaVu", "", 10)
-    pdf.set_xy(15, y_start + 10)
-    pdf.cell(45, 6, "Toplam Planlanan:")
-    pdf.set_font("DejaVu", "B", 10)
-    pdf.cell(30, 6, str(total_count), ln=True)
-    
-    pdf.set_font("DejaVu", "", 10)
-    pdf.set_xy(15, y_start + 18)
-    pdf.set_text_color(16, 185, 129)
-    pdf.cell(45, 6, "Ziyaret Edilen:")
-    pdf.set_font("DejaVu", "B", 10)
-    pdf.cell(30, 6, str(completed_count), ln=True)
-    
-    pdf.set_font("DejaVu", "", 10)
-    pdf.set_xy(15, y_start + 26)
-    pdf.set_text_color(239, 68, 68)
-    pdf.cell(45, 6, "Ziyaret Edilmeyen:")
-    pdf.set_font("DejaVu", "B", 10)
-    pdf.cell(30, 6, str(pending_count), ln=True)
-    
-    # Sağ kolon - Tahsilat özeti
-    pdf.set_font("DejaVu", "B", 12)
-    pdf.set_text_color(15, 23, 42)
-    pdf.set_xy(110, y_start)
-    pdf.cell(80, 7, "TAHSİLAT ÖZETİ", ln=True)
-    
-    pdf.set_font("DejaVu", "", 10)
-    pdf.set_xy(110, y_start + 10)
-    pdf.cell(45, 6, "Tahsilat Yapılan:")
-    pdf.set_font("DejaVu", "B", 10)
-    pdf.set_text_color(16, 185, 129)
-    pdf.cell(30, 6, str(payment_count), ln=True)
-    
-    pdf.set_font("DejaVu", "", 10)
-    pdf.set_text_color(15, 23, 42)
-    pdf.set_xy(110, y_start + 18)
-    pdf.cell(45, 6, "Toplam Tahsilat:")
-    pdf.set_font("DejaVu", "B", 10)
-    pdf.set_text_color(0, 85, 255)
-    pdf.cell(30, 6, f"{total_payment:,.2f} TL", ln=True)
-    
-    pdf.ln(35)
-    
-    # ===== MÜŞTERİ DETAYLARI =====
-    pdf.set_font("DejaVu", "B", 14)
-    pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 10, "MÜŞTERİ ZİYARET DETAYLARI", ln=True)
-    pdf.ln(2)
-    
-    for i, customer in enumerate(customers):
-        visit = visits_map.get(customer["id"], {})
-        is_completed = visit.get("completed", False)
-        price_status = customer.get("price_status", "Standart")
-        
-        # Check if we need a new page
-        if pdf.get_y() > 230:
-            pdf.add_page()
-        
-        # Customer card background
-        card_height = 35
-        if visit.get("customer_request"):
-            card_height += 8
-        if not is_completed and visit.get("visit_skip_reason"):
-            card_height += 8
-        if visit.get("payment_collected") or visit.get("payment_skip_reason"):
-            card_height += 8
-            
-        pdf.set_fill_color(255, 255, 255)
-        pdf.set_draw_color(226, 232, 240)
-        pdf.rect(10, pdf.get_y(), 190, card_height, "DF")
-        
-        y_card = pdf.get_y() + 3
-        
-        # Müşteri adı ve bölge
-        pdf.set_font("DejaVu", "B", 11)
-        pdf.set_text_color(15, 23, 42)
-        pdf.set_xy(15, y_card)
-        pdf.cell(85, 6, f"{i+1}. {customer['name'][:35]}")
-        
         pdf.set_font("DejaVu", "", 9)
         pdf.set_text_color(100, 116, 139)
-        pdf.cell(30, 6, f"({customer['region']})")
-        
-        # Fiyat statüsü badge
-        if price_status == "İskontolu":
-            pdf.set_fill_color(254, 243, 199)  # amber-100
-            pdf.set_text_color(180, 83, 9)  # amber-700
-        else:
-            pdf.set_fill_color(241, 245, 249)  # slate-100
-            pdf.set_text_color(71, 85, 105)  # slate-600
-        pdf.cell(25, 6, price_status, align="C", fill=True)
-        
-        # Ziyaret durumu badge
-        pdf.set_xy(160, y_card)
-        if is_completed:
-            pdf.set_fill_color(220, 252, 231)
-            pdf.set_text_color(22, 163, 74)
-            pdf.cell(35, 6, "ZİYARET EDİLDİ", align="C", fill=True)
-        else:
-            pdf.set_fill_color(254, 226, 226)
-            pdf.set_text_color(220, 38, 38)
-            pdf.cell(35, 6, "ZİYARET EDİLMEDİ", align="C", fill=True)
-        
-        y_line = y_card + 10
-        
-        # Ziyaret edilmediyse sebebi
-        if not is_completed and visit.get("visit_skip_reason"):
-            pdf.set_font("DejaVu", "", 9)
-            pdf.set_text_color(220, 38, 38)
-            pdf.set_xy(15, y_line)
-            pdf.cell(0, 5, f"Ziyaret Edilmeme Sebebi: {visit['visit_skip_reason'][:60]}", ln=True)
-            y_line += 8
-        
-        # Tahsilat bilgisi
-        pdf.set_xy(15, y_line)
-        pdf.set_font("DejaVu", "", 9)
-        if visit.get("payment_collected"):
-            pdf.set_text_color(22, 163, 74)
-            payment_type = visit.get("payment_type", "Belirtilmemiş")
-            payment_amount = visit.get("payment_amount", 0) or 0
-            pdf.cell(0, 5, f"Tahsilat: {payment_type} - {payment_amount:,.2f} TL", ln=True)
-        elif visit.get("payment_skip_reason"):
-            pdf.set_text_color(234, 88, 12)
-            pdf.cell(0, 5, f"Tahsilat Yapılmadı: {visit['payment_skip_reason'][:50]}", ln=True)
-        else:
-            pdf.set_text_color(100, 116, 139)
-            pdf.cell(0, 5, "Tahsilat: Bilgi girilmemiş", ln=True)
-        y_line += 8
-        
-        # Müşteri talebi/notu
-        if visit.get("customer_request"):
-            pdf.set_xy(15, y_line)
-            pdf.set_font("DejaVu", "", 9)
-            pdf.set_text_color(59, 130, 246)
-            pdf.cell(0, 5, f"Müşteri Talebi: {visit['customer_request'][:70]}", ln=True)
-            y_line += 8
-        
-        # Genel not
-        if visit.get("note"):
-            pdf.set_xy(15, y_line)
-            pdf.set_font("DejaVu", "", 9)
-            pdf.set_text_color(71, 85, 105)
-            pdf.cell(0, 5, f"Not: {visit['note'][:70]}", ln=True)
-        
-        pdf.ln(card_height + 3)
+        pdf.cell(0, 5, user_email, ln=True, align="C")
     
-    # ===== YENİ MÜŞTERİLER =====
-    if new_customers:
-        if pdf.get_y() > 200:
-            pdf.add_page()
-        
-        pdf.ln(5)
-        pdf.set_font("DejaVu", "B", 14)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 10, "BUGÜN EKLENEN YENİ MÜŞTERİLER (YENİ CARİ)", ln=True)
-        
-        # Table header
-        pdf.set_fill_color(219, 234, 254)
-        pdf.set_draw_color(147, 197, 253)
-        pdf.set_font("DejaVu", "B", 9)
-        pdf.set_text_color(30, 64, 175)
-        pdf.cell(60, 8, "Müşteri Adı", border=1, fill=True)
-        pdf.cell(35, 8, "Bölge", border=1, fill=True)
-        pdf.cell(35, 8, "Fiyat Statüsü", border=1, fill=True)
-        pdf.cell(60, 8, "Telefon", border=1, fill=True, ln=True)
-        
-        pdf.set_font("DejaVu", "", 9)
-        for nc in new_customers:
-            pdf.set_text_color(30, 64, 175)
-            pdf.cell(60, 8, nc['name'][:30], border=1, fill=True)
-            pdf.cell(35, 8, nc['region'], border=1, fill=True)
-            price_st = nc.get('price_status', 'Standart')
-            pdf.cell(35, 8, price_st, border=1, fill=True)
-            pdf.cell(60, 8, nc.get('phone', '-'), border=1, fill=True, ln=True)
+    pdf.ln(8)
     
-    # ===== GÜN SONU NOTU =====
+    # Özet Kutusu
+    pdf.set_fill_color(248, 250, 252)
+    pdf.set_draw_color(226, 232, 240)
+    box_y = pdf.get_y()
+    pdf.rect(10, box_y, 190, 55, "DF")
+    
+    # Sol Kolon - Ziyaret Özeti
+    pdf.set_xy(15, box_y + 5)
+    pdf.set_font("DejaVu", "B", 11)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(80, 6, "ZİYARET ÖZETİ")
+    
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_xy(15, box_y + 14)
+    pdf.set_text_color(71, 85, 105)
+    pdf.cell(50, 5, "Planlanan Ziyaret:")
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(30, 5, str(total_count))
+    
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_xy(15, box_y + 22)
+    pdf.set_text_color(22, 163, 74)
+    pdf.cell(50, 5, "Ziyaret Edilen:")
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.cell(30, 5, str(visited_count))
+    
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_xy(15, box_y + 30)
+    pdf.set_text_color(220, 38, 38)
+    pdf.cell(50, 5, "Ziyaret Edilmeyen:")
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.cell(30, 5, str(not_visited_count))
+    
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_xy(15, box_y + 38)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(50, 5, "Bekleyen:")
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(30, 5, str(pending_count_stat))
+    
+    pdf.set_font("DejaVu", "B", 11)
+    pdf.set_xy(15, box_y + 46)
+    pdf.set_text_color(0, 85, 255)
+    pdf.cell(50, 5, "Ziyaret Oranı:")
+    pdf.cell(30, 5, f"%{visit_rate}")
+    
+    # Sağ Kolon - Tahsilat Özeti
+    pdf.set_xy(110, box_y + 5)
+    pdf.set_font("DejaVu", "B", 11)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(80, 6, "TAHSİLAT ÖZETİ")
+    
+    pdf.set_font("DejaVu", "", 10)
+    pdf.set_xy(110, box_y + 14)
+    pdf.set_text_color(71, 85, 105)
+    pdf.cell(50, 5, "Tahsilat Yapılan:")
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.set_text_color(22, 163, 74)
+    pdf.cell(30, 5, f"{payment_count} müşteri")
+    
+    pdf.set_font("DejaVu", "B", 12)
+    pdf.set_xy(110, box_y + 26)
+    pdf.set_text_color(0, 85, 255)
+    pdf.cell(50, 6, "Toplam Tahsilat:")
+    pdf.cell(40, 6, f"{total_payment:,.2f} TL")
+    
+    # Araç bilgisi (varsa)
+    if daily_km_record and vehicle:
+        pdf.set_font("DejaVu", "", 9)
+        pdf.set_xy(110, box_y + 38)
+        pdf.set_text_color(71, 85, 105)
+        daily_km = daily_km_record.get("daily_km")
+        daily_cost = daily_km_record.get("daily_cost")
+        pdf.cell(80, 5, f"Araç: {vehicle.get('name', '-')}")
+        if daily_km:
+            pdf.set_xy(110, box_y + 44)
+            pdf.cell(40, 5, f"Günlük: {daily_km:,.0f} km")
+            if daily_cost:
+                pdf.cell(40, 5, f"Maliyet: {daily_cost:,.2f} TL")
+    
+    pdf.set_y(box_y + 60)
+    
+    # Gün Sonu Notu (varsa)
     if daily_note_text:
-        if pdf.get_y() > 220:
-            pdf.add_page()
-        
-        pdf.ln(10)
-        pdf.set_font("DejaVu", "B", 14)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 10, "SATIŞ TEMSİLCİSİ GÜN SONU NOTU", ln=True)
+        pdf.ln(5)
+        pdf.set_font("DejaVu", "B", 11)
+        pdf.set_text_color(113, 63, 18)
+        pdf.cell(0, 6, "GÜN SONU NOTU:", ln=True)
         
         pdf.set_fill_color(254, 252, 232)
         pdf.set_draw_color(250, 204, 21)
-        pdf.rect(10, pdf.get_y(), 190, 25, "DF")
+        note_y = pdf.get_y()
+        pdf.rect(10, note_y, 190, 20, "DF")
         
-        pdf.set_font("DejaVu", "", 10)
+        pdf.set_font("DejaVu", "", 9)
         pdf.set_text_color(113, 63, 18)
-        pdf.set_xy(15, pdf.get_y() + 5)
-        pdf.multi_cell(180, 6, daily_note_text[:300])
+        pdf.set_xy(15, note_y + 3)
+        pdf.multi_cell(180, 5, daily_note_text[:200])
     
-    # ===== FAZ 4: GÜNLÜK ARAÇ KULLANIM ÖZETİ =====
-    if current_user:
-        # Bugünkü KM kaydını al
-        daily_km_record = await db.daily_km_records.find_one(
-            {"user_id": current_user["id"], "date": date},
-            {"_id": 0}
-        )
+    # =========================================================================
+    # SAYFA 2: ZİYARET EDİLENLER TABLOSU
+    # =========================================================================
+    if visited_customers:
+        pdf.add_page()
         
-        if daily_km_record:
-            # Araç bilgisini al
-            vehicle = await db.vehicles.find_one(
-                {"id": daily_km_record.get("vehicle_id")},
-                {"_id": 0}
-            )
-            
-            if pdf.get_y() > 200:
+        pdf.set_font("DejaVu", "B", 14)
+        pdf.set_text_color(22, 163, 74)
+        pdf.cell(0, 10, f"ZİYARET EDİLEN MÜŞTERİLER ({len(visited_customers)})", ln=True)
+        pdf.ln(2)
+        
+        # Tablo başlığı
+        pdf.set_fill_color(220, 252, 231)
+        pdf.set_draw_color(134, 239, 172)
+        pdf.set_font("DejaVu", "B", 9)
+        pdf.set_text_color(22, 101, 52)
+        
+        pdf.cell(8, 8, "#", border=1, fill=True, align="C")
+        pdf.cell(52, 8, "Müşteri Adı", border=1, fill=True)
+        pdf.cell(28, 8, "Bölge", border=1, fill=True)
+        pdf.cell(35, 8, "Tahsilat", border=1, fill=True)
+        pdf.cell(67, 8, "Not / Talep", border=1, fill=True, ln=True)
+        
+        # Tablo satırları
+        pdf.set_font("DejaVu", "", 8)
+        for i, (customer, visit) in enumerate(visited_customers, 1):
+            # Sayfa kontrolü
+            if pdf.get_y() > 260:
                 pdf.add_page()
-            
-            pdf.ln(10)
-            pdf.set_font("DejaVu", "B", 14)
-            pdf.set_text_color(15, 23, 42)
-            pdf.cell(0, 10, "🚗 GÜNLÜK ARAÇ KULLANIM ÖZETİ", ln=True)
-            
-            # Araç bilgi kutusu
-            pdf.set_fill_color(236, 253, 245)  # Yeşil arka plan
-            pdf.set_draw_color(34, 197, 94)
-            box_height = 50
-            pdf.rect(10, pdf.get_y(), 190, box_height, "DF")
-            
-            y_start = pdf.get_y() + 5
-            
-            # Araç adı
-            if vehicle:
-                pdf.set_font("DejaVu", "B", 10)
+                # Başlık tekrar
+                pdf.set_fill_color(220, 252, 231)
+                pdf.set_font("DejaVu", "B", 9)
                 pdf.set_text_color(22, 101, 52)
-                pdf.set_xy(15, y_start)
-                pdf.cell(0, 6, f"Araç: {vehicle.get('name', '-')} ({vehicle.get('plate', '-')})", ln=True)
-                y_start += 8
+                pdf.cell(8, 8, "#", border=1, fill=True, align="C")
+                pdf.cell(52, 8, "Müşteri Adı", border=1, fill=True)
+                pdf.cell(28, 8, "Bölge", border=1, fill=True)
+                pdf.cell(35, 8, "Tahsilat", border=1, fill=True)
+                pdf.cell(67, 8, "Not / Talep", border=1, fill=True, ln=True)
+                pdf.set_font("DejaVu", "", 8)
             
-            # KM Bilgileri
-            pdf.set_font("DejaVu", "", 10)
+            pdf.set_fill_color(255, 255, 255)
             pdf.set_text_color(15, 23, 42)
             
-            start_km = daily_km_record.get("start_km", 0)
-            end_km = daily_km_record.get("end_km")
-            daily_km = daily_km_record.get("daily_km")
-            avg_cost = daily_km_record.get("avg_cost_per_km")
-            daily_cost = daily_km_record.get("daily_cost")
+            pdf.cell(8, 7, str(i), border=1, align="C")
+            pdf.cell(52, 7, customer['name'][:28], border=1)
+            pdf.cell(28, 7, customer['region'][:15], border=1)
             
-            pdf.set_xy(15, y_start)
-            pdf.cell(60, 6, f"Gün Başlangıç KM: {start_km:,.0f}")
-            pdf.cell(60, 6, f"Gün Bitiş KM: {end_km:,.0f}" if end_km else "Gün Bitiş KM: -")
-            pdf.ln(8)
-            
-            pdf.set_xy(15, y_start + 10)
-            pdf.set_font("DejaVu", "B", 10)
-            if daily_km:
-                pdf.cell(60, 6, f"Günlük KM: {daily_km:,.0f} km")
+            # Tahsilat
+            if visit.get("payment_collected"):
+                amount = visit.get("payment_amount", 0) or 0
+                pdf.set_text_color(22, 163, 74)
+                pdf.cell(35, 7, f"{amount:,.0f} TL", border=1)
             else:
-                pdf.cell(60, 6, "Günlük KM: -")
+                pdf.set_text_color(234, 88, 12)
+                reason = visit.get("payment_skip_reason", "Yapılmadı")[:18]
+                pdf.cell(35, 7, reason, border=1)
             
-            if avg_cost:
-                pdf.cell(60, 6, f"Ort. KM Maliyeti: {avg_cost:.3f} TL/km")
-            pdf.ln(8)
-            
-            # Günlük maliyet (vurgulu)
-            pdf.set_xy(15, y_start + 22)
-            pdf.set_font("DejaVu", "B", 12)
-            pdf.set_text_color(22, 101, 52)
-            if daily_cost:
-                pdf.cell(0, 8, f"💰 Günlük Araç Maliyeti: {daily_cost:,.2f} TL")
-            else:
-                pdf.cell(0, 8, "💰 Günlük Araç Maliyeti: Hesaplanamadı")
-            
-            pdf.ln(box_height - 5)
+            # Not
+            pdf.set_text_color(71, 85, 105)
+            note_text = visit.get("customer_request") or visit.get("note") or "-"
+            pdf.cell(67, 7, note_text[:35], border=1, ln=True)
     
-    # ===== FOOTER =====
-    pdf.ln(15)
-    pdf.set_font("DejaVu", "", 8)
+    # =========================================================================
+    # SAYFA 3: ZİYARET EDİLMEYENLER TABLOSU
+    # =========================================================================
+    if not_visited_customers:
+        pdf.add_page()
+        
+        pdf.set_font("DejaVu", "B", 14)
+        pdf.set_text_color(220, 38, 38)
+        pdf.cell(0, 10, f"ZİYARET EDİLMEYEN MÜŞTERİLER ({len(not_visited_customers)})", ln=True)
+        pdf.ln(2)
+        
+        # Tablo başlığı
+        pdf.set_fill_color(254, 226, 226)
+        pdf.set_draw_color(252, 165, 165)
+        pdf.set_font("DejaVu", "B", 9)
+        pdf.set_text_color(153, 27, 27)
+        
+        pdf.cell(8, 8, "#", border=1, fill=True, align="C")
+        pdf.cell(60, 8, "Müşteri Adı", border=1, fill=True)
+        pdf.cell(35, 8, "Bölge", border=1, fill=True)
+        pdf.cell(87, 8, "Ziyaret Edilmeme Sebebi", border=1, fill=True, ln=True)
+        
+        # Tablo satırları
+        pdf.set_font("DejaVu", "", 8)
+        for i, (customer, visit) in enumerate(not_visited_customers, 1):
+            if pdf.get_y() > 260:
+                pdf.add_page()
+                pdf.set_fill_color(254, 226, 226)
+                pdf.set_font("DejaVu", "B", 9)
+                pdf.set_text_color(153, 27, 27)
+                pdf.cell(8, 8, "#", border=1, fill=True, align="C")
+                pdf.cell(60, 8, "Müşteri Adı", border=1, fill=True)
+                pdf.cell(35, 8, "Bölge", border=1, fill=True)
+                pdf.cell(87, 8, "Ziyaret Edilmeme Sebebi", border=1, fill=True, ln=True)
+                pdf.set_font("DejaVu", "", 8)
+            
+            pdf.set_fill_color(255, 255, 255)
+            pdf.set_text_color(15, 23, 42)
+            
+            pdf.cell(8, 7, str(i), border=1, align="C")
+            pdf.cell(60, 7, customer['name'][:32], border=1)
+            pdf.cell(35, 7, customer['region'][:18], border=1)
+            
+            pdf.set_text_color(220, 38, 38)
+            reason = visit.get("visit_skip_reason", "Belirtilmemiş")[:45]
+            pdf.cell(87, 7, reason, border=1, ln=True)
+    
+    # =========================================================================
+    # BEKLEYENLER (varsa kısa liste)
+    # =========================================================================
+    if pending_customers:
+        if pdf.get_y() > 200:
+            pdf.add_page()
+        else:
+            pdf.ln(10)
+        
+        pdf.set_font("DejaVu", "B", 12)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(0, 8, f"BEKLEYEN MÜŞTERİLER ({len(pending_customers)})", ln=True)
+        
+        pdf.set_font("DejaVu", "", 8)
+        pdf.set_text_color(71, 85, 105)
+        
+        # Sadece isimlerini listele (kompakt)
+        pending_names = [c['name'][:25] for c, v in pending_customers]
+        pdf.multi_cell(0, 5, " • ".join(pending_names))
+    
+    # =========================================================================
+    # FOOTER
+    # =========================================================================
+    pdf.ln(10)
+    pdf.set_font("DejaVu", "", 7)
     pdf.set_text_color(148, 163, 184)
-    
-    # FAZ 3.1: Detaylı rapor bilgisi
     report_date = datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M')
-    pdf.cell(0, 5, f"Rapor Tarihi: {report_date} UTC", ln=True, align="C")
-    if user_email:
-        pdf.cell(0, 5, f"Raporu Oluşturan: {user_email}", ln=True, align="C")
-    pdf.cell(0, 5, "Bu rapor Satış Takip Sistemi tarafından otomatik oluşturulmuştur.", ln=True, align="C")
+    pdf.cell(0, 4, f"Rapor: {report_date} UTC | {user_name} | Satış Takip Sistemi", ln=True, align="C")
     
     # Output PDF
     pdf_output = io.BytesIO()
