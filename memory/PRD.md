@@ -72,6 +72,15 @@ Satış temsilcileri için çok kullanıcılı, günlük müşteri ziyaretlerini
 - [x] Sayfa 3: Ziyaret edilmeyenler tablosu
 - [x] Geriye uyumlu migration (eski veriler için)
 
+### Haftalık/Aylık Dönem Raporu (Tamamlandı - 17 Ocak 2026)
+- [x] Yeni endpoint: GET /api/report/pdf/period/{weekly|monthly}
+- [x] Dönem özeti: Çalışılan gün, toplam ziyaret, ziyaret oranı
+- [x] Tahsilat performansı: Toplam, günlük ortalama, ödeme tiplerine göre dağılım
+- [x] Araç/yakıt özeti: Toplam KM, yakıt maliyeti, km başına maliyet
+- [x] Günlük performans tablosu: Her gün için ziyaret/tahsilat detayı
+- [x] Performans sayfasına "Dönem Raporu İndir" butonu
+- [x] Haftalık/Aylık seçim dialog'u
+
 ## Tech Stack
 - **Backend**: FastAPI (Python) + MongoDB (Motor async)
 - **Frontend**: React + Tailwind CSS + Shadcn UI
