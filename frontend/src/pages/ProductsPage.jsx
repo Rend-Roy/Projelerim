@@ -22,7 +22,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import MobileLayout from "@/components/MobileLayout";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -178,7 +177,7 @@ export default function ProductsPage() {
   };
 
   return (
-    <MobileLayout title="Ürün Kataloğu" showBackButton data-testid="products-page">
+    <div data-testid="products-page">
       <div className="p-4 space-y-4">
         {/* Search & Filters */}
         <div className="space-y-3">
@@ -452,6 +451,6 @@ export default function ProductsPage() {
           </div>
         )}
       </div>
-    </MobileLayout>
+    </div>
   );
 }
