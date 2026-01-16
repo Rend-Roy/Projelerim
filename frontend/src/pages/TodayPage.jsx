@@ -216,8 +216,8 @@ export default function TodayPage() {
 
   return (
     <div className="p-4 pt-6" data-testid="today-page">
-      {/* Header */}
-      <header className="mb-5">
+      {/* Page Title Section */}
+      <div className="mb-5">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
@@ -241,7 +241,7 @@ export default function TodayPage() {
             <RefreshCw className={`w-5 h-5 text-slate-500 ${loading ? "animate-spin" : ""}`} />
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Date Navigation */}
       <div className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm mb-4">
