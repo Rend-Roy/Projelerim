@@ -23,7 +23,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import MobileLayout from "@/components/MobileLayout";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -137,7 +136,7 @@ export default function CategoriesPage() {
   };
 
   return (
-    <MobileLayout title="Kategoriler" showBackButton data-testid="categories-page">
+    <div data-testid="categories-page">
       <div className="p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -333,6 +332,6 @@ export default function CategoriesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </MobileLayout>
+    </div>
   );
 }
