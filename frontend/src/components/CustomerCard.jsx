@@ -1,69 +1,59 @@
-import { ChevronRight, MapPin, Tag, AlertTriangle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ChevronRight, MapPin, AlertTriangle } from "lucide-react";
 import VisitStatusBadge from "./VisitStatusBadge";
 
-export default function CustomerCard({ customer, visit, date }) {
-  const navigate = useNavigate();
-  const priceStatus = customer.price_status || "Standart";
-  const hasAlerts = customer.alerts && customer.alerts.length > 0;
-
-  const handleClick = () => {
-    navigate(`/customer/${customer.id}`, { state: { date, visit } });
-  };
+export default function CustomerCard({ customer, visit, onClick }) {
+  const alerts = customer.alerts || [];
+  const hasAlerts = alerts.length > 0;
+  
+  // Status hesapla
+  const status = visit?.status || (visit?.completed ? "visited" : (visit?.visit_skip_reason ? "not_visited" : "pending"));
+  
+  // Status'a göre sol kenar rengi
+  const borderColorClass = status === "visited" 
+    ? "border-l-green-500" 
+    : status === "not_visited" 
+      ? "border-l-red-500" 
+      : "border-l-slate-300";
 
   return (
     <div
-      onClick={handleClick}
-      className="customer-card bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3 cursor-pointer relative overflow-hidden"
+      onClick={onClick}
+      className={`bg-white rounded-lg p-3 border-l-4 ${borderColorClass} shadow-sm active:bg-slate-50 cursor-pointer transition-colors`}
       data-testid={`customer-card-${customer.id}`}
     >
-      {/* Status Indicator Bar */}
-      <div
-        className={`status-indicator absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${
-          visit?.completed ? "bg-green-500" : hasAlerts ? "bg-red-500" : "bg-slate-300"
-        }`}
-      />
-
-      {/* Content */}
-      <div className="flex-1 ml-2 min-w-0">
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-slate-900 text-base leading-tight truncate">
-            {customer.name}
-          </h3>
-          {priceStatus === "İskontolu" && (
-            <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded">
-              İSK
-            </span>
-          )}
-          {/* FAZ 2: Uyarı ikonu */}
-          {hasAlerts && (
-            <span 
-              className="flex-shrink-0 p-1 bg-red-100 text-red-600 rounded-full"
-              title={customer.alerts.join(", ")}
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1 mt-1">
-          <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-          <span className="text-sm text-slate-500 truncate">{customer.region}</span>
-        </div>
-        {/* FAZ 2: Uyarı metni (ilk uyarı) */}
-        {hasAlerts && (
-          <div className="flex items-center gap-1 mt-1">
-            <span className="text-xs text-red-600 truncate">
-              ⚠️ {customer.alerts[0]}{customer.alerts.length > 1 ? ` (+${customer.alerts.length - 1})` : ''}
-            </span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-medium text-slate-900 truncate">{customer.name}</h3>
+            {hasAlerts && (
+              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+            )}
           </div>
-        )}
+          <div className="flex items-center gap-1.5 text-sm text-slate-500">
+            <MapPin className="w-3.5 h-3.5" />
+            <span className="truncate">{customer.region}</span>
+            {customer.price_status === "İskontolu" && (
+              <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">
+                İskontolu
+              </span>
+            )}
+          </div>
+          {/* Ziyaret edilmediyse sebep göster */}
+          {status === "not_visited" && visit?.visit_skip_reason && (
+            <p className="text-xs text-red-600 mt-1 truncate">
+              Sebep: {visit.visit_skip_reason}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <VisitStatusBadge 
+            status={status}
+            completed={visit?.completed} 
+            visitSkipReason={visit?.visit_skip_reason}
+          />
+          <ChevronRight className="w-5 h-5 text-slate-300 flex-shrink-0" />
+        </div>
       </div>
-
-      {/* Status Badge */}
-      <VisitStatusBadge completed={visit?.completed} />
-
-      {/* Arrow */}
-      <ChevronRight className="w-5 h-5 text-slate-300 flex-shrink-0" />
     </div>
   );
 }
