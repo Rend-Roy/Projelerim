@@ -98,6 +98,17 @@ Satış temsilcileri için çok kullanıcılı, günlük müşteri ziyaretlerini
 - [x] 23/23 backend test başarılı
 - [x] Mevcut FAZ 1-4 özellikleri regresyon testi başarılı
 
+### FAZ 5.1: İnteraktif Kategori Navigasyonu (Tamamlandı - 18 Ocak 2026)
+- [x] Backend: /api/categories endpoint'ine product_count eklendi
+- [x] Frontend: Kategoriler sayfasında ürün sayısı gösterimi
+- [x] Frontend: Boş kategoriler soluk görünüm (opacity-60)
+- [x] Frontend: Kategoriye tıklayınca /products?category=X yönlendirme
+- [x] Frontend: URL'den kategori parametresi okuma
+- [x] Frontend: Aktif filtre badge ve X butonu ile temizleme
+- [x] Frontend: "Tüm Ürünler" butonu ile filtre kaldırma
+- [x] Frontend: Dropdown'dan kategori seçince URL güncelleme
+- [x] 100% test başarısı (backend + frontend)
+
 ## Tech Stack
 - **Backend**: FastAPI (Python) + MongoDB (Motor async)
 - **Frontend**: React + Tailwind CSS + Shadcn UI
