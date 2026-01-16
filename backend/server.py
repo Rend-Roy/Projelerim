@@ -870,6 +870,18 @@ async def get_today_customers(day_name: str, current_user: dict = Depends(requir
     return customers
 
 # Visit endpoints - FAZ 3.2: user_id filtresi eklendi
+# Helper function: Eski verilere status alanı ekle (geriye uyumluluk)
+def migrate_visit_status(visit: dict) -> dict:
+    """Eski visit kayıtlarına status alanı ekle"""
+    if "status" not in visit or visit.get("status") is None:
+        if visit.get("completed"):
+            visit["status"] = "visited"
+        elif visit.get("visit_skip_reason"):
+            visit["status"] = "not_visited"
+        else:
+            visit["status"] = "pending"
+    return visit
+
 @api_router.get("/visits", response_model=List[Visit])
 async def get_visits(
     date: Optional[str] = None, 
@@ -885,6 +897,8 @@ async def get_visits(
     
     visits = await db.visits.find(query, {"_id": 0}).to_list(1000)
     for v in visits:
+        # Geriye uyumluluk: status alanı ekle
+        migrate_visit_status(v)
         if isinstance(v.get('created_at'), str):
             v['created_at'] = datetime.fromisoformat(v['created_at'])
         if isinstance(v.get('completed_at'), str):
@@ -897,6 +911,8 @@ async def get_visit(visit_id: str, current_user: dict = Depends(require_auth)):
     visit = await db.visits.find_one({"id": visit_id, "user_id": current_user["id"]}, {"_id": 0})
     if not visit:
         raise HTTPException(status_code=404, detail="Ziyaret bulunamadı")
+    # Geriye uyumluluk: status alanı ekle
+    migrate_visit_status(visit)
     if isinstance(visit.get('created_at'), str):
         visit['created_at'] = datetime.fromisoformat(visit['created_at'])
     if isinstance(visit.get('completed_at'), str):
@@ -918,14 +934,16 @@ async def create_or_get_visit(customer_id: str, date: str, current_user: dict = 
         "user_id": current_user["id"]
     }, {"_id": 0})
     if existing:
+        # Geriye uyumluluk: status alanı ekle
+        migrate_visit_status(existing)
         if isinstance(existing.get('created_at'), str):
             existing['created_at'] = datetime.fromisoformat(existing['created_at'])
         if isinstance(existing.get('completed_at'), str):
             existing['completed_at'] = datetime.fromisoformat(existing['completed_at'])
         return existing
     
-    # Create new visit
-    visit_obj = Visit(customer_id=customer_id, date=date, user_id=current_user["id"])
+    # Create new visit with status=pending
+    visit_obj = Visit(customer_id=customer_id, date=date, user_id=current_user["id"], status="pending")
     doc = visit_obj.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
     if doc.get('completed_at'):
@@ -949,13 +967,42 @@ async def update_visit(visit_id: str, input: VisitUpdate, current_user: dict = D
             if input.model_dump(exclude_unset=True).get(k) is not None or k in input.model_dump(exclude_unset=True):
                 update_data[k] = v
     
-    if 'completed' in update_data and update_data['completed']:
-        update_data['completed_at'] = datetime.now(timezone.utc).isoformat()
+    # Status değişikliğine göre completed alanını da güncelle (geriye uyumluluk)
+    if 'status' in update_data:
+        if update_data['status'] == 'visited':
+            update_data['completed'] = True
+            update_data['completed_at'] = datetime.now(timezone.utc).isoformat()
+            update_data['visit_skip_reason'] = None
+        elif update_data['status'] == 'not_visited':
+            update_data['completed'] = False
+            update_data['completed_at'] = None
+            # payment alanlarını temizle
+            update_data['payment_collected'] = False
+            update_data['payment_type'] = None
+            update_data['payment_amount'] = None
+            update_data['payment_skip_reason'] = None
+        elif update_data['status'] == 'pending':
+            update_data['completed'] = False
+            update_data['completed_at'] = None
+            update_data['visit_skip_reason'] = None
+    # Eski completed tabanlı güncelleme için de status'u senkronize et
+    elif 'completed' in update_data:
+        if update_data['completed']:
+            update_data['status'] = 'visited'
+            update_data['completed_at'] = datetime.now(timezone.utc).isoformat()
+        else:
+            # visit_skip_reason varsa not_visited, yoksa pending
+            if update_data.get('visit_skip_reason') or visit.get('visit_skip_reason'):
+                update_data['status'] = 'not_visited'
+            else:
+                update_data['status'] = 'pending'
     
     if update_data:
         await db.visits.update_one({"id": visit_id, "user_id": current_user["id"]}, {"$set": update_data})
     
     updated = await db.visits.find_one({"id": visit_id, "user_id": current_user["id"]}, {"_id": 0})
+    # Geriye uyumluluk: status alanı ekle
+    migrate_visit_status(updated)
     if isinstance(updated.get('created_at'), str):
         updated['created_at'] = datetime.fromisoformat(updated['created_at'])
     if isinstance(updated.get('completed_at'), str):
