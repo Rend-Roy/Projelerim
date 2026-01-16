@@ -60,7 +60,7 @@ export default function ProductsPage() {
     try {
       const params = new URLSearchParams();
       if (search) params.append("search", search);
-      if (selectedCategory) params.append("category", selectedCategory);
+      if (selectedCategory && selectedCategory !== "all") params.append("category", selectedCategory);
       params.append("limit", "200");
       
       const res = await axios.get(`${API}/products?${params.toString()}`);
