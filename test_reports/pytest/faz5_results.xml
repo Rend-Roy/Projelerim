@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="11" skipped="0" tests="23" time="2.098" timestamp="2026-01-16T22:07:00.502036+00:00" hostname="agent-env-683eef66-6c7c-4620-be0c-ef84e1095864"><testcase classname="tests.test_faz5_products.TestCategoryCRUD" name="test_get_categories_requires_auth" time="0.073" /><testcase classname="tests.test_faz5_products.TestCategoryCRUD" name="test_get_categories_success" time="0.297" /><testcase classname="tests.test_faz5_products.TestCategoryCRUD" name="test_create_category_success" time="0.038"><failure message="KeyError: 'name'">tests/test_faz5_products.py:66: in test_create_category_success
+    assert data["name"] == unique_name
+           ^^^^^^^^^^^^
+E   KeyError: 'name'</failure></testcase><testcase classname="tests.test_faz5_products.TestCategoryCRUD" name="test_create_duplicate_category_fails" time="0.035"><failure message="KeyError: 'id'">tests/test_faz5_products.py:82: in test_create_duplicate_category_fails
+    cat_id = response1.json()["id"]
+             ^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'id'</failure></testcase><testcase classname="tests.test_faz5_products.TestCategoryCRUD" name="test_update_category_success" time="0.073"><failure message="KeyError: 'id'">tests/test_faz5_products.py:103: in test_update_category_success
+    cat_id = create_response.json()["id"]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'id'</failure></testcase><testcase classname="tests.test_faz5_products.TestCategoryCRUD" name="test_delete_category_success" time="0.040"><failure message="KeyError: 'id'">tests/test_faz5_products.py:126: in test_delete_category_success
+    cat_id = create_response.json()["id"]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'id'</failure></testcase><testcase classname="tests.test_faz5_products.TestProductCRUD" name="test_get_products_requires_auth" time="0.033" /><testcase classname="tests.test_faz5_products.TestProductCRUD" name="test_get_products_success" time="0.289" /><testcase classname="tests.test_faz5_products.TestProductCRUD" name="test_create_product_success" time="0.035"><failure message="KeyError: 'name'">tests/test_faz5_products.py:176: in test_create_product_success
+    "category": test_category["name"],
+                ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'name'</failure></testcase><testcase classname="tests.test_faz5_products.TestProductCRUD" name="test_product_code_unique_validation" time="0.000"><failure message="KeyError: 'name'">tests/test_faz5_products.py:202: in test_product_code_unique_validation
+    "category": test_category["name"],
+                ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'name'</failure></testcase><testcase classname="tests.test_faz5_products.TestProductCRUD" name="test_get_product_by_id" time="0.000"><failure message="KeyError: 'name'">tests/test_faz5_products.py:234: in test_get_product_by_id
+    "category": test_category["name"],
+                ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'name'</failure></testcase><testcase classname="tests.test_faz5_products.TestProductCRUD" name="test_update_product_success" time="0.000"><failure message="KeyError: 'name'">tests/test_faz5_products.py:261: in test_update_product_success
+    "category": test_category["name"],
+                ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'name'</failure></testcase><testcase classname="tests.test_faz5_products.TestProductCRUD" name="test_delete_product_success" time="0.000"><failure message="KeyError: 'name'">tests/test_faz5_products.py:299: in test_delete_product_success
+    "category": test_category["name"],
+                ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'name'</failure></testcase><testcase classname="tests.test_faz5_products.TestProductCRUD" name="test_delete_product_success" time="0.000"><error message="failed on teardown with &quot;KeyError: 'id'&quot;">tests/test_faz5_products.py:152: in test_category
+    requests.delete(f"{BASE_URL}/api/categories/{response.json()['id']}", headers=auth_headers)
+                                                 ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'id'</error></testcase><testcase classname="tests.test_faz5_products.TestProductFiltering" name="test_products_pagination" time="0.368" /><testcase classname="tests.test_faz5_products.TestProductFiltering" name="test_products_search_filter" time="0.038"><failure message="KeyError: 'id'">tests/test_faz5_products.py:346: in test_products_search_filter
+    product_id = create_response.json()["id"]
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'id'</failure></testcase><testcase classname="tests.test_faz5_products.TestProductFiltering" name="test_products_category_filter" time="0.036"><failure message="KeyError: 'id'">tests/test_faz5_products.py:369: in test_products_category_filter
+    cat_id = cat_response.json()["id"]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'id'</failure></testcase><testcase classname="tests.test_faz5_products.TestRegressionFAZ1to4" name="test_customers_endpoint_works" time="0.298" /><testcase classname="tests.test_faz5_products.TestRegressionFAZ1to4" name="test_regions_endpoint_works" time="0.040" /><testcase classname="tests.test_faz5_products.TestRegressionFAZ1to4" name="test_visits_endpoint_works" time="0.031" /><testcase classname="tests.test_faz5_products.TestRegressionFAZ1to4" name="test_follow_ups_endpoint_works" time="0.032" /><testcase classname="tests.test_faz5_products.TestRegressionFAZ1to4" name="test_analytics_endpoint_works" time="0.034" /><testcase classname="tests.test_faz5_products.TestRegressionFAZ1to4" name="test_vehicles_endpoint_works" time="0.073" /><testcase classname="tests.test_faz5_products.TestRegressionFAZ1to4" name="test_auth_me_endpoint_works" time="0.073" /></testsuite></testsuites>
