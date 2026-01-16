@@ -2733,34 +2733,110 @@ async def generate_period_report_pdf(
 # FAZ 5: Ürün Kataloğu Endpoint'leri
 # =============================================================================
 
-# Cloudinary Signature Endpoint
-@api_router.get("/cloudinary/signature")
-async def get_cloudinary_signature(
-    folder: str = Query(default="products"),
+# Cloudinary Direkt Upload Endpoint
+@api_router.post("/upload-image")
+async def upload_image_to_cloudinary(
+    file: UploadFile = File(...),
     current_user: dict = Depends(require_auth)
 ):
-    """Cloudinary upload için imza oluştur"""
-    ALLOWED_FOLDERS = ("products/", "products")
-    if not folder.startswith(ALLOWED_FOLDERS) and folder not in ALLOWED_FOLDERS:
-        folder = "products"
+    """Görseli Cloudinary'ye yükle ve URL döndür"""
+    import cloudinary.uploader
     
-    timestamp = int(time.time())
-    params = {
-        "timestamp": timestamp,
-        "folder": f"{folder}/{current_user['id']}"
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Sadece görsel dosyaları kabul edilir")
+    
+    try:
+        # Dosyayı oku
+        contents = await file.read()
+        
+        # Cloudinary'ye yükle
+        result = cloudinary.uploader.upload(
+            contents,
+            folder=f"products/{current_user['id']}",
+            resource_type="image"
+        )
+        
+        return {
+            "url": result.get("secure_url"),
+            "public_id": result.get("public_id")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Yükleme hatası: {str(e)}")
+
+# Toplu Görsel Yükleme Endpoint
+@api_router.post("/upload-images-bulk")
+async def upload_images_bulk(
+    files: List[UploadFile] = File(...),
+    current_user: dict = Depends(require_auth)
+):
+    """Birden fazla görseli yükle ve product_code ile eşleştir"""
+    import cloudinary.uploader
+    
+    results = {
+        "uploaded": [],
+        "matched": [],
+        "unmatched": [],
+        "errors": []
     }
     
-    signature = cloudinary.utils.api_sign_request(
-        params,
-        os.environ.get("CLOUDINARY_API_SECRET")
-    )
+    for file in files:
+        if not file.content_type.startswith("image/"):
+            results["errors"].append({"file": file.filename, "error": "Görsel değil"})
+            continue
+        
+        # product_code'u dosya adından çıkar
+        filename_without_ext = file.filename.rsplit(".", 1)[0]
+        product_code = filename_without_ext.split("_")[0]
+        
+        try:
+            # Dosyayı oku
+            contents = await file.read()
+            
+            # Cloudinary'ye yükle
+            upload_result = cloudinary.uploader.upload(
+                contents,
+                folder=f"products/{current_user['id']}",
+                resource_type="image"
+            )
+            
+            url = upload_result.get("secure_url")
+            results["uploaded"].append({"file": file.filename, "url": url, "product_code": product_code})
+            
+            # Ürünü bul ve görseli ekle
+            product = await db.products.find_one({
+                "user_id": current_user["id"],
+                "product_code": product_code
+            })
+            
+            if product:
+                current_images = product.get("images", [])
+                if url not in current_images:
+                    current_images.append(url)
+                    await db.products.update_one(
+                        {"id": product["id"]},
+                        {"$set": {"images": current_images}}
+                    )
+                results["matched"].append({
+                    "file": file.filename,
+                    "product_code": product_code,
+                    "product_name": product["name"]
+                })
+            else:
+                results["unmatched"].append({
+                    "file": file.filename,
+                    "product_code": product_code,
+                    "reason": "Ürün bulunamadı"
+                })
+                
+        except Exception as e:
+            results["errors"].append({"file": file.filename, "error": str(e)})
     
     return {
-        "signature": signature,
-        "timestamp": timestamp,
-        "cloud_name": os.environ.get("CLOUDINARY_CLOUD_NAME"),
-        "api_key": os.environ.get("CLOUDINARY_API_KEY"),
-        "folder": f"{folder}/{current_user['id']}"
+        "uploaded_count": len(results["uploaded"]),
+        "matched_count": len(results["matched"]),
+        "unmatched_count": len(results["unmatched"]),
+        "error_count": len(results["errors"]),
+        **results
     }
 
 # ===== Kategori Endpoint'leri =====
