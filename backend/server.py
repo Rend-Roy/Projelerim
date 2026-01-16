@@ -1892,31 +1892,31 @@ async def get_vehicle_stats(vehicle_id: str, current_user: dict = Depends(requir
         "fuel_record_count": len(fuel_records)
     }
 
-# PDF Report endpoint
+# PDF Report endpoint - FAZ 3.2: user_id filtresi eklendi (require_auth kullanılıyor)
 @api_router.get("/report/pdf/{day_name}/{date}")
 async def generate_daily_report_pdf(
     day_name: str, 
     date: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_auth)
 ):
     """Generate comprehensive daily visit report as PDF"""
     
-    # Kullanıcı bilgisi al (opsiyonel - geriye uyumluluk için)
-    user_name = current_user.get("name", "Satış Temsilcisi") if current_user else "Satış Temsilcisi"
-    user_email = current_user.get("email", "") if current_user else ""
+    # Kullanıcı bilgisi al
+    user_name = current_user.get("name", "Satış Temsilcisi")
+    user_email = current_user.get("email", "")
     
-    # Get customers for this day
+    # Get customers for this day (only user's customers)
     customers = await db.customers.find(
-        {"visit_days": day_name}, 
+        {"visit_days": day_name, "user_id": current_user["id"]}, 
         {"_id": 0}
     ).to_list(1000)
     
-    # Get visits for this date
-    visits = await db.visits.find({"date": date}, {"_id": 0}).to_list(1000)
+    # Get visits for this date (only user's visits)
+    visits = await db.visits.find({"date": date, "user_id": current_user["id"]}, {"_id": 0}).to_list(1000)
     visits_map = {v["customer_id"]: v for v in visits}
     
-    # Get new customers added today
-    all_customers = await db.customers.find({}, {"_id": 0}).to_list(1000)
+    # Get new customers added today (only user's customers)
+    all_customers = await db.customers.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(1000)
     new_customers = []
     for c in all_customers:
         created = c.get('created_at', '')
@@ -1925,8 +1925,8 @@ async def generate_daily_report_pdf(
         elif hasattr(created, 'strftime') and created.strftime('%Y-%m-%d') == date:
             new_customers.append(c)
     
-    # Get daily note
-    daily_note = await db.daily_notes.find_one({"date": date}, {"_id": 0})
+    # Get daily note (only user's note)
+    daily_note = await db.daily_notes.find_one({"date": date, "user_id": current_user["id"]}, {"_id": 0})
     daily_note_text = daily_note.get("note", "") if daily_note else ""
     
     # Calculate stats
